@@ -5,11 +5,15 @@ import pytest
 import pygame
 from src.ui.hud import SimulationHUD
 from run_simulation import create_default_scenario
+from src.entities.boat_agent import BoatType
 
 def test_default_scenario_setup():
-    """Verify default scenario spawns 6 boats and 5 schools."""
+    """Verify default scenario spawns boats in the requested 1:1:2 ratio."""
     sim = create_default_scenario()
-    assert len(sim.boats) == 6
+    assert len(sim.boats) == 8
+    assert sum(b.boat_type == BoatType.TOWING for b in sim.boats) == 2
+    assert sum(b.boat_type == BoatType.CLEANING for b in sim.boats) == 2
+    assert sum(b.boat_type == BoatType.REGULAR for b in sim.boats) == 4
     assert len(sim.schools) == 5
     assert all(b.state.value == "EXPLORING" for b in sim.boats)
     assert all(not s.is_depleted for s in sim.schools)

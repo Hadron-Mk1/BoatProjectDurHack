@@ -75,12 +75,25 @@ class SimulationHUD:
             BoatState.RESERVED: sum(1 for b in sim.boats if b.state == BoatState.RESERVED),
             BoatState.TRAVELING: sum(1 for b in sim.boats if b.state == BoatState.TRAVELING),
             BoatState.FISHING: sum(1 for b in sim.boats if b.state == BoatState.FISHING),
+            BoatState.BROKEN: sum(1 for b in sim.boats if b.state == BoatState.BROKEN),
+            BoatState.TOWING: sum(1 for b in sim.boats if b.state == BoatState.TOWING),
+            BoatState.CLEANING: sum(1 for b in sim.boats if b.state == BoatState.CLEANING),
         }
         
         status_text = f"EXP:{counts[BoatState.EXPLORING]}  RES:{counts[BoatState.RESERVED]}  TRV:{counts[BoatState.TRAVELING]}  FSH:{counts[BoatState.FISHING]}"
         stat_surf = self.font.render(status_text, True, COLOR_TEXT)
         surface.blit(stat_surf, (25, y))
-        y += 22
+        y += 20
+
+        rescue_text = (
+            f"BRK:{counts[BoatState.BROKEN]}  TOW:{counts[BoatState.TOWING]}  "
+            f"CLN:{counts[BoatState.CLEANING]}"
+        )
+        rescue_surf = self.font.render(rescue_text, True, (255, 150, 110))
+        surface.blit(rescue_surf, (25, y))
+        oil_text = f"Oil Spill Alerts: {len(sim.oil_spill_manager.spills)}"
+        oil_surf = self.font.render(oil_text, True, (205, 145, 245))
+        surface.blit(oil_surf, (25, y + 19))
 
         # Controls hint at bottom left
         hint_bg = pygame.Surface((440, 30), pygame.SRCALPHA)

@@ -138,6 +138,18 @@ def test_harvest_population_never_negative_and_marks_depleted():
     subsequent = school.apply_harvest(operation_id="op_1", active_boat_count=3, delta_time=1.0)
     assert subsequent == 0.0
 
+
+def test_respawn_restores_initial_population_and_availability():
+    school = FishSchool((100, 100), population=12.0)
+    school.claim("op_1")
+    school.apply_harvest("op_1", active_boat_count=1, delta_time=1.0)
+
+    assert school.is_depleted
+    assert school.respawn() is True
+    assert school.population == pytest.approx(12.0)
+    assert school.is_available()
+    assert school.radius == pytest.approx(30.0)
+
 # ----------------- OceanBounds Environment Tests -----------------
 
 def test_ocean_bounds_containment_and_clamping():

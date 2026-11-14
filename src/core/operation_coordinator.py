@@ -83,7 +83,9 @@ class OperationCoordinator:
         if not school.is_available() or school.school_id in self.school_to_operation:
             return None
             
-        if lead_boat.state != BoatState.EXPLORING or lead_boat.boat_id in self.boat_to_operation:
+        if (lead_boat.state not in (BoatState.EXPLORING, BoatState.FISHING)
+                or lead_boat.current_operation_id is not None
+                or lead_boat.boat_id in self.boat_to_operation):
             return None
 
         # Step 2: Unique operation ID generation

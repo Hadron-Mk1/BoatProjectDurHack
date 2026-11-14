@@ -10,6 +10,7 @@ from src.core.simulation import FishSwarmSimulation
 from src.entities.boat_agent import BoatAgent, BoatState
 from src.entities.fish_school import FishSchool
 from src.core.operation_coordinator import OperationCoordinator
+from src.config import FISH_RESPAWN_DELAY
 
 @pytest.fixture(autouse=True)
 def reset_all_counters():
@@ -155,3 +156,21 @@ def test_multiple_concurrent_fishing_operations():
     
     # All 6 boats must be back in EXPLORING
     assert all(b.state == BoatState.EXPLORING for b in sim.boats)
+
+
+def test_depleted_school_respawns_after_configured_delay():
+    sim = FishSwarmSimulation(width=500, height=400, margin=20)
+    school = FishSchool((250, 200), population=10.0)
+    school.claim("test_op")
+    school.apply_harvest("test_op", active_boat_count=1, delta_time=1.0)
+    sim.add_school(school)
+
+    sim.update(0.1)  # Registers the respawn timer.
+    for _ in range(int(FISH_RESPAWN_DELAY) - 1):
+        sim.update(1.0)
+    assert school.is_depleted
+
+    sim.update(1.0)
+    assert school.is_depleted is False
+    assert school.population == pytest.approx(school.initial_population)
+    assert school.is_available()

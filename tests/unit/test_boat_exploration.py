@@ -3,6 +3,7 @@ Unit tests for BoatAgent and 3x3 Exploration subsystem.
 Verifies 9-cell local grid generation, boundary clamping, shared cell reservations,
 state machine transitions, kinematic steering, and sensor detection.
 """
+import math
 import pytest
 import pygame
 from src.entities.boat_agent import BoatAgent, BoatState
@@ -160,6 +161,17 @@ def test_boat_kinematic_movement_and_boundary_clamping(coordinator):
     for _ in range(20):
         boat.steer_towards(out_target, delta_time=0.5, world_coordinator=coordinator)
     assert coordinator.bounds.is_inside(boat.position, use_margin=True)
+
+
+def test_boat_slows_near_waypoint_instead_of_orbiting_it(coordinator):
+    """A turn-limited boat should converge on a close target instead of circling."""
+    boat = BoatAgent(position=(400, 400), speed=120.0, heading=math.pi / 2)
+    target = pygame.Vector2(500, 400)
+
+    for _ in range(300):
+        boat.steer_towards(target, delta_time=0.1, world_coordinator=coordinator)
+
+    assert boat.position.distance_to(target) <= 15.0
 
 # ----------------- Sensor Perception Tests -----------------
 

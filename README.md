@@ -13,6 +13,10 @@ FishSwarm is a 2D multi-agent autonomous fishing simulation built in Python with
 - **Synchronized Cooperative Harvesting:** Combined harvest rate ($\text{base\_rate} \times N_{\text{active}} \times \Delta t$) is calculated once per update; biomass is strictly clamped at zero upon depletion.
 - **Clean Lifecycle Recovery:** Participating and in-transit assisting boats smoothly transition back to `EXPLORING` when operations conclude.
 - **Telemetry HUD & Visual Debugger:** Real-time metrics display (fleet catch, active schools, boat state distributions) and toggleable vector/range overlays.
+- **Specialized Fleet:** Default fleet uses a 1:1:2 Towing, Cleaning, and Regular boat ratio. All boats fish when available; the towing specialist handles wreck recovery and Cleaning Boats handle oil spills.
+- **Oil Spill Response:** Moving boats use the configured per-tick chance to leave a silent spill in valid open water. The next boat to contact it is slowed for 10 seconds and broadcasts the purple hazard alert; available Cleaning Boats are dispatched while the fleet avoids the reported area. Cleaners hold position for four seconds, then resume waypoint search immediately.
+- **Role-Limited Rescue:** Only Towing Boats can fill either of the two rescue slots. A wreck waits for two free Towing Boats; their approaches use the normal turn-limited waypoint steering toward the wreck.
+- **Fish Capacity & Recovery:** Boat classes have different catch capacities, and depleted fish schools respawn at their starting population after eight simulation seconds.
 
 ---
 
@@ -25,7 +29,7 @@ pip install -r requirements.txt
 ```
 
 ### Run Automated Tests
-All 42 unit and integration tests run headlessly in pure CLI mode:
+All unit and integration tests run headlessly in pure CLI mode:
 ```bash
 python run_tests.py
 ```
