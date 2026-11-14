@@ -1,4 +1,37 @@
-# What's He Wearing?
+# FishSwarm – Autonomous Multi-Agent Fishing Simulation
+
+FishSwarm is a 2D multi-agent autonomous fishing simulation built in Python with Pygame. Autonomous fishing boats independently explore an ocean using randomized 3×3 grid patterns, discover stationary fish schools, cooperatively recruit the nearest available boats, harvest the biomass, and return to independent exploration upon school depletion.
+
+## Quick Start
+
+### Installation
+Ensure Python (>= 3.10) is installed. Install required packages:
+```bash
+pip install -r requirements.txt
+```
+
+### Run Automated Test Suite
+All tests run headlessly without opening graphical windows:
+```bash
+python run_tests.py
+```
+
+### Launch Interactive Simulation
+Launch the visual Pygame simulation:
+```bash
+python run_simulation.py
+```
+
+### Controls
+- **SPACE**: Pause / Resume simulation
+- **S**: Cycle simulation speed multiplier (1x → 2x → 4x)
+- **D**: Toggle visual debug overlays (detection radii, exploration waypoints, recruitment connection rays)
+- **R**: Reset to default scenario
+- **ESC**: Exit
+
+---
+
+# What's He Wearing? (Legacy Teammate Project)
 
 ![What's He Wearing Screenshot](graphics/screenshot.png)
 
