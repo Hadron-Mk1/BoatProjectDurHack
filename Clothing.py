@@ -5,10 +5,7 @@ import pygame
 
 #39x40 grid center should be 19:13 piskel
 class Clothing:
-    """
-    Clothing class used by all clothing types, by default sets initial hat list for future use and sets clothes image
-    to none
-    """
+
 
     hat_list = {}
     def __init__(self, person_tracking,person_start_x,person_start_y,clothes_image = None):
