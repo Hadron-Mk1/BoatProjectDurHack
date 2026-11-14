@@ -2,16 +2,30 @@
 
 FishSwarm is a 2D multi-agent autonomous fishing simulation built in Python with Pygame. Autonomous fishing boats independently explore an ocean using randomized 3×3 grid patterns, discover stationary fish schools, cooperatively recruit the nearest available boats, harvest the biomass, and return to independent exploration upon school depletion.
 
+---
+
+## Features
+
+- **Autonomous 3×3 Grid Exploration:** Boats independently explore local 3×3 grids around their search positions, systematically covering cells while avoiding ocean boundaries.
+- **Shared Target Coordination:** A global coordinator reserves exploration targets, preventing fleet members from unnecessarily overlapping paths.
+- **Proximity-Based Recruitment:** When a boat discovers a school, it becomes the Operation Lead and atomically recruits up to two closest available boats ($\min(2, N_{\text{available}})$).
+- **Simultaneous Discovery Arbitration:** Deterministic request handling prevents race conditions and eliminates double-booking.
+- **Synchronized Cooperative Harvesting:** Combined harvest rate ($\text{base\_rate} \times N_{\text{active}} \times \Delta t$) is calculated once per update; biomass is strictly clamped at zero upon depletion.
+- **Clean Lifecycle Recovery:** Participating and in-transit assisting boats smoothly transition back to `EXPLORING` when operations conclude.
+- **Telemetry HUD & Visual Debugger:** Real-time metrics display (fleet catch, active schools, boat state distributions) and toggleable vector/range overlays.
+
+---
+
 ## Quick Start
 
 ### Installation
-Ensure Python (>= 3.10) is installed. Install required packages:
+Ensure Python (>= 3.10) is installed. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-### Run Automated Test Suite
-All tests run headlessly without opening graphical windows:
+### Run Automated Tests
+All 42 unit and integration tests run headlessly in pure CLI mode:
 ```bash
 python run_tests.py
 ```
@@ -23,162 +37,48 @@ python run_simulation.py
 ```
 
 ### Controls
-- **SPACE**: Pause / Resume simulation
-- **S**: Cycle simulation speed multiplier (1x → 2x → 4x)
-- **D**: Toggle visual debug overlays (detection radii, exploration waypoints, recruitment connection rays)
-- **R**: Reset to default scenario
-- **ESC**: Exit
+| Key | Action |
+| :--- | :--- |
+| **SPACE** | Pause / Resume simulation |
+| **S** | Cycle simulation speed (1x → 2x → 4x) |
+| **D** | Toggle debug overlays (detection radii, exploration waypoints, cooperation rays) |
+| **R** | Reset simulation to default scenario |
+| **ESC** | Exit simulation |
 
 ---
 
-# What's He Wearing? (Legacy Teammate Project)
+## Project Structure
 
-![What's He Wearing Screenshot](graphics/screenshot.png)
-
-A Python/Pygame simulation where generated characters move around, talk and exchange clothing based on confidence values 
-to simulate how global trends emerge in a very simple way.
-
-The simulation explores how small, individual interactions can create large-scale changes in a population. Characters 
-walk around the world, meet each other and influence one another's clothing choices until eventually one style becomes 
-the only option left, once this happens the simulation stops and declares the winner.
----
-## Why I chose to create this project
-
-As a Computer Science student that came from a mathematical background, I heavily enjoy statistics. Throughout my
-first year learning to code, I felt as though I was missing some key steps to progression; one of them was learning Python.
-To challenge myself and broaden my coding skills I had decided to take up a python project. Being familiar with Java
-leaned me to an OOP project and with a maths based background I came up with a project I could enjoy and learn from. 
-
----
-
-## Features
-- Optimised collision detection using a spatial grid system
-- Autonomous character movement
-- Animated sprites and background
-- Dynamic clothing assignment
-- Character conversations and interactions
-- Confidence system
-- Clothing inheritance between characters
-- Real-time population statistics
-- Pause and speed controls
-- Complete terrain manipulation concurrent with user window size
-- Procedural generation
-
----
-
-## How It Works
-
-Each character is assigned:
-
-- A random starting position
-- A movement direction
-- A clothing style
-- A confidence value associated with that clothing and their own random self-confidence value
-
-Characters continuously move around the environment. When two characters meet, they can begin a conversation.
-
-During a conversation:
-1. The characters compare their confidence values.
-2. The character with higher confidence influences the other character.
-3. The losing character adopts the winning character's clothing style.
-4. The simulation continues until every person shares one homogeneous style.
-
-Clothing styles compete with each other and the population evolves over time.
-
----
-## Technical Details
-
-### Spatial Grid Collision Optimisation
-
-Instead of checking every character against every other character, the simulation divides the world into grid sections,
-as this simulation can contain hundreds of objects on screen, a grid is necessary for a smooth experience.
-Even at 500 characters (and their various hats), a stable 60fps is observed on a standard mid-range laptop.
-
-Characters only check interactions with others in the same section to utilise the grid.
-
----
-
-### Object-Oriented Design
-
-Object-oriented programming is used to separate different parts of the simulation.
-
-Example:
-- All characters inherit from a superclass
-- All clothing inherit from a superclass
-- Terrains have their own superclass for easy background switching and creation
----
-
-### Dynamic Animation/Images
-
-Characters alter animation images depending on whether they are talking or walking
-
-Each hats sprite is placed onto their respective characters head correctly, regardless of character state or png size
-
----
-
-## Controls
-
-| Key / Button | Action |
-|---|--------------------------------------------------------------|
-| F | Toggle terrain to use entire screen and set screen to fullsize|
-| TAB | Overlay clothing piechart|
-| Pause button | Pause/unpause simulation|
-| Speed button | Increase/reduce simulation speed|
-
----
-
-## Installation
-
-### Requirements
-
-- Python 3.x
-- Pygame
-
-Install dependencies:
-
-```bash
-pip install pygame
 ```
-
-Run the program from the project directory:
-
-```bash
-python Whats_he_wearing.py
+BoatProjectDurHack/
+├── run_simulation.py                 # Interactive Pygame visual simulation runner
+├── run_tests.py                      # Headless CLI test runner
+├── requirements.txt                  # Python dependencies (pygame-ce, pytest)
+├── README.md                         # Documentation & controls guide
+├── src/
+│   ├── config.py                     # Arena bounds, speeds, radii, harvest rates, colors
+│   ├── core/
+│   │   ├── world.py                  # OceanBounds with containment and margin clamping
+│   │   ├── world_coordinator.py      # Shared exploration target reservations
+│   │   ├── comms_hub.py              # Modular message broker (DISCOVERY, REQUEST, ACK)
+│   │   ├── operation_coordinator.py  # Atomic recruitment (min 2, N_available), safe locking
+│   │   └── simulation.py             # Master simulation kernel and synchronized updates
+│   ├── entities/
+│   │   ├── fish_school.py            # Stationary biomass, single-op claim lock, depletion
+│   │   ├── exploration.py            # 3x3 local grid generator, visited-cell tracking
+│   │   └── boat_agent.py             # Kinematics, sensors, and 4-state lifecycle machine
+│   └── ui/
+│       ├── hud.py                    # Real-time metrics dashboard and state counters
+│       └── debug_overlay.py          # Detection circles, 3x3 grids, operation connection rays
+└── tests/                            # 42 Automated unit and integration tests
+    ├── conftest.py                   # Headless Pygame fixture configuration
+    ├── unit/
+    │   ├── test_baseline.py
+    │   ├── test_fish_school.py
+    │   ├── test_boat_exploration.py
+    │   ├── test_comms_hub.py
+    │   ├── test_operation_coordinator.py
+    │   └── test_hud.py
+    └── integration/
+        └── test_cooperative_lifecycle.py
 ```
-
----
-## Screenshots of program
-
-![Lucy Screenshot](graphics/lucy_screenshot.png)
-![Peter screenshot](graphics/peter_screenshot.png)
-![Generating screen screenshot](graphics/generating_screenshot.png)
-![In game screenshot](graphics/in_game_screenshot.png)
-![Graph in game screenshot](graphics/screenshot.png)
----
-
-## Future Improvements
-
-- Add more character personalities
-- Add environmental obstacles
-- Create more complex social behaviours
-- Animate the hat options available
-- Separate game state logic into multiple files
-- Add sound effects and music
-
----
-
-## What I Learned/Improved in
-
-- Python object-oriented programming
-- Pygame game development
-- Sprite animation systems
-- Event handling
-- Procedural generation
-- Simulation design
-- Performance optimisation
----
-
-Built using:
-
-- Python
-- Pygame

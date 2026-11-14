@@ -1,10 +1,9 @@
 """
 Baseline test suite for FishSwarm project setup.
-Verifies the test environment, headless Pygame display, and existing assets.
+Verifies the test environment, headless Pygame display, and font subsystem.
 """
 import os
 import pygame
-from Terrain import Terrain
 
 def test_headless_pygame_initialized(init_headless_pygame):
     """Verify that Pygame display is initialized in headless mode."""
@@ -13,31 +12,17 @@ def test_headless_pygame_initialized(init_headless_pygame):
     assert surface is not None, "A valid display surface must exist"
     assert surface.get_size() == (800, 600)
 
-def test_terrain_asset_loading():
-    """Verify that existing Terrain loads all 6 animation frames correctly."""
-    terrain = Terrain()
-    assert len(terrain.terrain_animation_images) == 6, "Terrain must have 6 animation frames"
-    assert terrain.image is not None, "Terrain active image must not be None"
-    
-    # Verify animation frame cycle
-    initial_frame = terrain.frame_index
-    for _ in range(12):
-        terrain.animate()
-    assert terrain.frame_index != initial_frame or terrain.frame_timer > 0, "Terrain should step frames"
+def test_headless_surface_creation():
+    """Verify arbitrary surface creation and pixel fill operations."""
+    test_surface = pygame.Surface((200, 200))
+    test_surface.fill((20, 50, 85))
+    assert test_surface.get_size() == (200, 200)
 
-def test_graphics_directory_integrity():
-    """Verify required graphics assets exist."""
-    required_graphics = [
-        "graphics/terrain1.png",
-        "graphics/terrain2.png",
-        "graphics/terrain3.png",
-        "graphics/terrain4.png",
-        "graphics/terrain5.png",
-        "graphics/terrain6.png",
-        "graphics/speed_fast.png",
-        "graphics/speed_slow.png",
-        "graphics/paused.png",
-        "graphics/unpaused.png",
-    ]
-    for rel_path in required_graphics:
-        assert os.path.exists(rel_path), f"Required asset '{rel_path}' must exist"
+def test_font_subsystem():
+    """Verify Pygame font subsystem initializes and renders text."""
+    pygame.font.init()
+    assert pygame.font.get_init(), "Font subsystem must be initialized"
+    font = pygame.font.Font(None, 24)
+    rendered = font.render("FishSwarm Test", True, (255, 255, 255))
+    assert rendered.get_width() > 0
+    assert rendered.get_height() > 0
