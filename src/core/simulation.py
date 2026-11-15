@@ -23,6 +23,7 @@ from src.core.comms_hub import CommsHub
 from src.core.rescue_manager import RescueManager
 from src.core.oil_spill_manager import OilSpillManager
 from src.core.pier_manager import PierManager
+from src.core.whirlpool_manager import WhirlpoolManager
 from src.entities.boat_agent import BoatAgent, BoatState, BoatType, SonarBoat
 from src.entities.fish_school import FishSchool
 
@@ -46,6 +47,7 @@ class FishSwarmSimulation:
         self.rescue_manager = RescueManager()
         self.oil_spill_manager = OilSpillManager()
         self.pier_manager = PierManager(width, height, margin)
+        self.whirlpool_manager = WhirlpoolManager()
 
         self.boats: list[BoatAgent] = []
         self.schools: list[FishSchool] = []
@@ -149,6 +151,8 @@ class FishSwarmSimulation:
         self.oil_spill_manager.poll(self)
         self.rescue_manager.poll(self)
         self.pier_manager.prepare(self, delta_time)
+        self.whirlpool_manager.update(delta_time, self)
+
 
         # 1. Discovery scan: exploring boats query available schools
         for boat in self.boats:
@@ -189,18 +193,34 @@ class FishSwarmSimulation:
                 self.world_coordinator,
             )
         for boat in self.boats:
-            boat.avoidance_positions = [
-                previous_positions[other.boat_id]
-                for other in self.boats
-                if other is not boat
-                and other is not boat.claimed_rescue
-                and not (boat.claimed_rescue is not None
-                         and other.claimed_rescue is boat.claimed_rescue)
-            ]
+            whirlpool_active = self.whirlpool_manager.is_active
+            if boat.boat_type == BoatType.TOWING:
+                # Tow boats have higher mass and do not yield to smaller boats
+                boat.avoidance_positions = [
+                    previous_positions[other.boat_id]
+                    for other in self.boats
+                    if other is not boat
+                    and not (whirlpool_active and (other.needs_rescue or other.state == BoatState.BROKEN))
+                    and (other.boat_type == BoatType.TOWING or other.needs_rescue or other.state == BoatState.BROKEN)
+                    and other is not boat.claimed_rescue
+                    and not (boat.claimed_rescue is not None
+                             and other.claimed_rescue is boat.claimed_rescue)
+                ]
+            else:
+                boat.avoidance_positions = [
+                    previous_positions[other.boat_id]
+                    for other in self.boats
+                    if other is not boat
+                    and not (whirlpool_active and (other.needs_rescue or other.state == BoatState.BROKEN))
+                    and other is not boat.claimed_rescue
+                    and not (boat.claimed_rescue is not None
+                             and other.claimed_rescue is boat.claimed_rescue)
+                ]
+
             if boat.state == BoatState.DUMPING:
                 boat.avoidance_positions = []
             boat.update(delta_time, self.world_coordinator)
-            if not boat.needs_rescue:
+            if not boat.needs_rescue and boat.state != BoatState.WHIRLPOOL:
                 self.pier_manager.keep_boat_out(
                     boat,
                     previous_positions[boat.boat_id],
@@ -213,6 +233,8 @@ class FishSwarmSimulation:
         # Sonar boats patrol on the regular exploration loop and periodically
         # broadcast nearby schools to matching vessels within pulse range.
         for sonar in (b for b in self.boats if isinstance(b, SonarBoat)):
+            if sonar.state != BoatState.EXPLORING:
+                continue
             if sonar.advance_pulse(delta_time):
                 nearby = [school for school in self.schools
                           if sonar.position.distance_to(school.position) <= sonar.detection_radius
@@ -238,6 +260,10 @@ class FishSwarmSimulation:
         # 3. Synchronized cooperative harvesting & depletion checks
         active_ops = list(self.operation_coordinator.operations.values())
         for op in active_ops:
+            if any(boat.state == BoatState.WHIRLPOOL
+                   for boat in self.boats
+                   if boat.boat_id in op.all_participating_boat_ids):
+                continue
             school = self.get_school(op.school_id)
             if school is None or school.is_depleted:
                 self.operation_coordinator.complete_operation(

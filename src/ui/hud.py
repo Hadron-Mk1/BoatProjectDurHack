@@ -80,9 +80,12 @@ class SimulationHUD:
             BoatState.BROKEN: sum(1 for b in sim.boats if b.state == BoatState.BROKEN),
             BoatState.TOWING: sum(1 for b in sim.boats if b.state == BoatState.TOWING),
             BoatState.CLEANING: sum(1 for b in sim.boats if b.state == BoatState.CLEANING),
+            BoatState.WHIRLPOOL: sum(1 for b in sim.boats if b.state == BoatState.WHIRLPOOL),
         }
         
         status_text = f"EXP:{counts[BoatState.EXPLORING]}  RES:{counts[BoatState.RESERVED]}  TRV:{counts[BoatState.TRAVELING]}  FSH:{counts[BoatState.FISHING]}"
+        if counts[BoatState.WHIRLPOOL] > 0:
+            status_text += f"  WRL:{counts[BoatState.WHIRLPOOL]}"
         stat_surf = self.font.render(status_text, True, COLOR_TEXT)
         surface.blit(stat_surf, (25, y))
         y += 20
@@ -98,6 +101,7 @@ class SimulationHUD:
         surface.blit(oil_surf, (25, y + 19))
 
         self.draw_controls(surface, speed_multiplier, display_mode, expanded_options)
+
 
     def draw_controls(self, surface: pygame.Surface, speed_multiplier: float = 1.0,
                       display_mode: str = "debug", expanded: bool = False):

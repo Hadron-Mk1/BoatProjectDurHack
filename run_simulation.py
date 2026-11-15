@@ -144,6 +144,9 @@ def main():
                     show_sim_options = not show_sim_options
                 elif event.key == pygame.K_r:
                     sim = create_default_scenario()
+                elif event.key == pygame.K_w:
+                    sim.whirlpool_manager.trigger_spawn(sim)
+
 
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 window = pygame.display.get_surface()
@@ -166,6 +169,8 @@ def main():
         minimal_mode = display_mode == "minimal"
         show_debug = display_mode == "debug"
         ocean.draw(screen, sim.sim_time)
+        sim.whirlpool_manager.draw_visuals(screen, sim.sim_time)
+
 
         # Ocean border
         b = sim.world_coordinator.bounds
@@ -220,7 +225,9 @@ def main():
             )
         elif not minimal_mode:
             hud.draw_controls(screen, speed_multiplier, display_mode, show_sim_options)
-        sim.pier_manager.draw(screen, hud.font, show_ui=True)
+        sim.pier_manager.draw(screen, hud.font, show_ui=True, sim_time=sim.sim_time)
+        sim.whirlpool_manager.draw_ui(screen, hud.font)
+
 
         window = pygame.display.get_surface()
         display_rect = fit_surface_rect(window.get_size())

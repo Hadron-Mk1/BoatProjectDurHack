@@ -87,6 +87,10 @@ class PierManager:
         self.mission_cooldowns = [max(0.0, remaining - delta_time)
                                   for remaining in self.mission_cooldowns]
         for boat in simulation.boats:
+            if boat.state == BoatState.WHIRLPOOL:
+                if boat.boat_id in self.docked_until:
+                    self.docked_until[boat.boat_id] += delta_time
+                continue
             boat.deposit_glow_remaining = max(0.0, boat.deposit_glow_remaining - delta_time)
             if boat.boat_type == BoatType.SONAR or boat.state in (
                 BoatState.BROKEN, BoatState.MOVING_TO_TOW, BoatState.TOWING,
@@ -388,7 +392,62 @@ class PierManager:
         elif self.menu_open and not panel.collidepoint(event.pos):
             self.menu_open = False
 
-    def draw(self, surface, font=None, show_ui=True):
+    def _draw_ambient_people(self, surface: pygame.Surface, sim_time: float = 0.0):
+        """
+        Renders miniature decorative people standing along the pier deck.
+        Each person is rendered using simple geometric shapes (circle for head, triangle for body)
+        with continuous, subtle up-and-down bobbing motion with staggered sine-wave offsets.
+        Zero collision or gameplay impact.
+        """
+        dock = self.dock_rect()
+        deck = dock.inflate(-7, -6)
+        repair_dock = self.repair_dock_rect()
+        repair_deck = repair_dock.inflate(-7, -6)
+
+        # Ambient people configurations on main pier: (x_rel, y_rel, phase, bob_speed, shirt_color)
+        main_pier_people = [
+            (0.35, 0.18, 0.0, 3.1, (245, 195, 40)),   # Yellow slicker
+            (0.65, 0.38, 1.4, 2.8, (45, 95, 175)),   # Navy jacket
+            (0.38, 0.62, 2.7, 3.3, (215, 60, 50)),   # Red jacket
+            (0.62, 0.82, 4.2, 2.9, (45, 165, 115)),  # Seafoam sweater
+        ]
+
+        # Ambient people on repair dock
+        repair_people = [
+            (0.50, 0.32, 0.9, 3.0, (235, 135, 35)),   # Orange workwear
+            (0.52, 0.68, 3.4, 2.7, (90, 115, 135)),   # Mechanic blue-grey
+        ]
+
+        for deck_rect, people_list in ((deck, main_pier_people), (repair_deck, repair_people)):
+            if deck_rect.width <= 0 or deck_rect.height <= 0:
+                continue
+            for x_rel, y_rel, phase, speed, shirt_color in people_list:
+                bx = deck_rect.left + deck_rect.width * x_rel
+                by = deck_rect.top + deck_rect.height * y_rel
+                # Continuous staggered sine-wave vertical bobbing
+                bob = math.sin(sim_time * speed + phase) * 1.4
+                cy = by + bob
+
+                # Miniature ground contact shadow
+                shadow_surf = pygame.Surface((10, 4), pygame.SRCALPHA)
+                pygame.draw.ellipse(shadow_surf, (20, 20, 20, 75), (0, 0, 10, 4))
+                surface.blit(shadow_surf, (round(bx - 5), round(by + 6)))
+
+                # Body: simple geometric triangle pointing upward
+                body_top = (bx, cy - 2)
+                body_left = (bx - 3.5, cy + 6)
+                body_right = (bx + 3.5, cy + 6)
+                pygame.draw.polygon(surface, shirt_color, [body_top, body_left, body_right])
+                pygame.draw.polygon(surface, (25, 30, 40), [body_top, body_left, body_right], 1)
+
+                # Head: simple geometric circle
+                head_center = (round(bx), round(cy - 5))
+                head_radius = 2.5
+                pygame.draw.circle(surface, (245, 208, 175), head_center, head_radius)
+                # Subtle dark hair / sailor cap
+                pygame.draw.circle(surface, (35, 45, 60), (head_center[0], head_center[1] - 1), 2)
+
+    def draw(self, surface, font=None, show_ui=True, sim_time: float = 0.0):
         """Draw a slim right-edge jetty and a polished, collapsible mission list."""
         dock = self.dock_rect()
         pygame.draw.polygon(surface, (73, 57, 43), [
@@ -441,6 +500,10 @@ class PierManager:
         pygame.draw.line(surface, (112, 135, 145),
                          (repair_dock.centerx + 3, repair_dock.centery - 7),
                          (repair_dock.centerx + 7, repair_dock.centery - 3), 3)
+
+        # Render ambient miniature decorative people standing on the pier deck
+        self._draw_ambient_people(surface, sim_time)
+
 
         if not show_ui:
             return

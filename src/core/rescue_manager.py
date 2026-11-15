@@ -112,13 +112,15 @@ class RescueManager:
                     second_group = tow_group_by_id.get(second.boat_id)
                     if first_group is not None and first_group is second_group:
                         continue
-                    if ((first.needs_rescue or first.state == BoatState.BROKEN)
-                            and first_group is None):
-                        continue
-                    if ((second.needs_rescue or second.state == BoatState.BROKEN)
-                            and second_group is None):
+                    whirlpool_active = simulation.whirlpool_manager.is_active
+                    if whirlpool_active and (
+                        first.needs_rescue or first.state == BoatState.BROKEN
+                        or second.needs_rescue or second.state == BoatState.BROKEN
+                    ):
                         continue
                     if first_group is not None or second_group is not None:
+                        continue
+                    if first.state == BoatState.WHIRLPOOL or second.state == BoatState.WHIRLPOOL:
                         continue
                     if (first.state == BoatState.DUMPING
                             and second.state == BoatState.DUMPING
@@ -139,7 +141,21 @@ class RescueManager:
                                     or second.boat_id in waiting_tow_ids)
                     if first_fixed and second_fixed:
                         continue
-                    if first_fixed:
+                    first_tow = getattr(first, "boat_type", None) == BoatType.TOWING
+                    second_tow = getattr(second, "boat_type", None) == BoatType.TOWING
+
+                    # Tow boat push priority: Tow boats have higher mass/priority and actively push smaller boats clear
+                    if first_tow and not second_tow and not second_fixed:
+                        direction = self._move_clear_of_anchor(
+                            second, first.position, direction, clearance,
+                            simulation.world_coordinator.bounds,
+                        )
+                    elif second_tow and not first_tow and not first_fixed:
+                        direction = -self._move_clear_of_anchor(
+                            first, second.position, -direction, clearance,
+                            simulation.world_coordinator.bounds,
+                        )
+                    elif first_fixed:
                         direction = self._move_clear_of_anchor(
                             second, first.position, direction, clearance,
                             simulation.world_coordinator.bounds,
@@ -400,6 +416,12 @@ class RescueManager:
         for incident in self._incidents[:]:
             wreck = incident["wreck"]
             destination = incident["destination"]
+            if simulation.whirlpool_manager.is_active and (
+                wreck.state == BoatState.BROKEN
+                or any(rescuer.state == BoatState.WHIRLPOOL
+                       for rescuer in incident["rescuers"])
+            ):
+                continue
 
             if incident["phase"] == "approach":
                 wreck.velocity.update(0, 0)
