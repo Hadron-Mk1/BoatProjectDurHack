@@ -551,3 +551,5 @@ def test_full_scenario_simulation_with_whirlpool():
     # Run another 20 steps post-despawn
     for _ in range(20):
         sim.update(0.1)
+
+\n
