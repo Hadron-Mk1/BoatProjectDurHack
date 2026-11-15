@@ -61,8 +61,9 @@ class FishSwarmSimulation:
     def add_boat(self, boat: BoatAgent):
         """Adds a boat agent and registers it with CommsHub."""
         if boat.boat_type != BoatType.SONAR and boat.mission is None:
-            boat.mission = self.pier_manager.new_starting_mission()
-            boat.target_color = boat.mission.color
+            boat.mission = self.pier_manager.new_starting_mission(boat.fish_capacity)
+            if boat.mission is not None:
+                boat.target_color = boat.mission.color
         self.boats.append(boat)
         self.comms_hub.register_agent(
             boat.boat_id,
