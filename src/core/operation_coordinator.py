@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 import pygame
 
-from src.entities.boat_agent import BoatAgent, BoatState
+from src.entities.boat_agent import BoatAgent, BoatState, BoatType
 from src.entities.fish_school import FishSchool
 from src.core.comms_hub import CommsHub, Message
 
@@ -85,7 +85,13 @@ class OperationCoordinator:
             
         if (lead_boat.state not in (BoatState.EXPLORING, BoatState.FISHING)
                 or lead_boat.current_operation_id is not None
-                or lead_boat.boat_id in self.boat_to_operation):
+                or lead_boat.boat_id in self.boat_to_operation
+                or lead_boat.boat_type == BoatType.SONAR):
+            return None
+
+        # Check target color compatibility:
+        # A boat with target_color only pursues schools matching its target_color
+        if lead_boat.target_color is not None and lead_boat.target_color != school.color:
             return None
 
         # Step 2: Unique operation ID generation
@@ -121,12 +127,23 @@ class OperationCoordinator:
         self.operations[op_id] = operation
 
         # Step 5: Find available candidate boats
-        # Filter: exploring, not the lead, not already booked in an operation
+        # Filter: exploring, not the lead, not already booked in an operation,
+        # and matching target color (ignoring schools of different color,
+        # and if lead targets a color, uncolored boats patrol/wait rather than join).
         available_candidates: list[BoatAgent] = []
         for b in all_boats:
             if b.boat_id != lead_boat.boat_id:
-                if b.state == BoatState.EXPLORING and b.boat_id not in self.boat_to_operation:
-                    available_candidates.append(b)
+                if (b.state == BoatState.EXPLORING
+                        and b.boat_type != BoatType.SONAR
+                        and b.boat_id not in self.boat_to_operation
+                        and not getattr(b, "needs_rescue", False)
+                        and getattr(b, "claimed_rescue", None) is None):
+                    if lead_boat.target_color is not None:
+                        if b.target_color == school.color:
+                            available_candidates.append(b)
+                    else:
+                        if b.target_color is None or b.target_color == school.color:
+                            available_candidates.append(b)
 
         # Sort candidates by Euclidean distance to school (closest first)
         available_candidates.sort(key=lambda b: b.position.distance_to(school.position))

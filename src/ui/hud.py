@@ -32,6 +32,8 @@ class SimulationHUD:
         is_paused: bool = False,
         speed_multiplier: float = 1.0,
         show_debug: bool = True,
+        display_mode: str = "debug",
+        expanded_options: bool = False,
     ):
         """Draws telemetry overlay on top of the simulation surface."""
         # Semi-transparent background box for HUD in top-left
@@ -95,10 +97,53 @@ class SimulationHUD:
         oil_surf = self.font.render(oil_text, True, (205, 145, 245))
         surface.blit(oil_surf, (25, y + 19))
 
-        # Controls hint at bottom left
-        hint_bg = pygame.Surface((440, 30), pygame.SRCALPHA)
+        self.draw_controls(surface, speed_multiplier, display_mode, expanded_options)
+
+    def draw_controls(self, surface: pygame.Surface, speed_multiplier: float = 1.0,
+                      display_mode: str = "debug", expanded: bool = False):
+        """Keep the keyboard controls visible when the info panel is hidden."""
+        if expanded:
+            segments = [
+                ("[Tab] Minimise | [SPACE] Pause/Play | [S] Speed ", "label"),
+                ("1x", "speed_1"), (" / ", "separator"),
+                ("2x", "speed_2"), (" / ", "separator"),
+                ("4x", "speed_4"),
+                (" | [D] Display ", "label"),
+                ("Debug", "mode_debug"), (" / ", "separator"),
+                ("Minimal", "mode_minimal"), (" / ", "separator"),
+                ("Normal", "mode_normal"),
+                (" | [I] Info HUD", "label"),
+            ]
+        else:
+            segments = [("[Tab] Sim options", "label")]
+        active_speed = f"speed_{speed_multiplier:g}"
+        active_mode = f"mode_{display_mode.lower()}"
+        inactive_color = (145, 165, 180)
+        label_color = (190, 210, 230)
+        active_color = (255, 255, 225)
+        rendered = []
+        total_width = 0
+        for text, kind in segments:
+            active = kind in (active_speed, active_mode)
+            color = active_color if active else (
+                inactive_color if kind.startswith("speed_") or kind.startswith("mode_")
+                or kind == "separator" else label_color
+            )
+            text_surface = self.font.render(text, True, color)
+            pad = 6 if active else 0
+            rendered.append((text_surface, active, pad))
+            total_width += text_surface.get_width() + pad * 2
+
+        hint_bg = pygame.Surface((total_width + 20, 30), pygame.SRCALPHA)
         hint_bg.fill((15, 25, 45, 180))
         surface.blit(hint_bg, (15, surface.get_height() - 45))
-        hint = "[SPACE] Pause/Play | [S] Speed (1x/2x/4x) | [D] Debug Overlay"
-        hint_surf = self.font.render(hint, True, (190, 210, 230))
-        surface.blit(hint_surf, (25, surface.get_height() - 38))
+        x = 25
+        for text_surface, active, pad in rendered:
+            if active:
+                chip = pygame.Rect(x, surface.get_height() - 41,
+                                   text_surface.get_width() + pad * 2, 22)
+                pygame.draw.rect(surface, (38, 81, 98), chip, border_radius=4)
+                pygame.draw.rect(surface, (102, 220, 222), chip, 1, border_radius=4)
+                x += pad
+            surface.blit(text_surface, (x, surface.get_height() - 38))
+            x += text_surface.get_width() + (pad if active else 0)

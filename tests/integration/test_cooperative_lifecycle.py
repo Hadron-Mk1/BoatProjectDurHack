@@ -29,13 +29,13 @@ def test_full_cooperative_cycle_end_to_end():
     """
     sim = FishSwarmSimulation(width=1000, height=800, margin=50)
     
-    # Place lead right next to school, assistants slightly farther
-    lead = BoatAgent(position=(200, 200), speed=200.0)
-    assistant_1 = BoatAgent(position=(260, 200), speed=200.0)
-    assistant_2 = BoatAgent(position=(200, 260), speed=200.0)
-    
     # Moderate population so harvest takes a few frames
     school = FishSchool(position=(220, 220), population=30.0)
+
+    # Place lead right next to school, assistants slightly farther with matching target_color
+    lead = BoatAgent(position=(200, 200), speed=200.0, target_color=school.color)
+    assistant_1 = BoatAgent(position=(260, 200), speed=200.0, target_color=school.color)
+    assistant_2 = BoatAgent(position=(200, 260), speed=200.0, target_color=school.color)
     
     sim.add_boat(lead)
     sim.add_boat(assistant_1)
@@ -86,12 +86,12 @@ def test_depletion_recovery_while_assistant_in_transit():
     """
     sim = FishSwarmSimulation(width=1000, height=800, margin=50)
     
-    # Lead is already at school, assistant is far away (requires several seconds to travel)
-    lead = BoatAgent(position=(200, 200), speed=100.0)
-    far_assistant = BoatAgent(position=(700, 700), speed=100.0)
-    
     # Very small population (depleted in 1-2 frames by lead alone)
     school = FishSchool(position=(210, 210), population=5.0)
+
+    # Lead is already at school, assistant is far away (requires several seconds to travel)
+    lead = BoatAgent(position=(200, 200), speed=100.0, target_color=school.color)
+    far_assistant = BoatAgent(position=(700, 700), speed=100.0, target_color=school.color)
     
     sim.add_boat(lead)
     sim.add_boat(far_assistant)
@@ -122,16 +122,16 @@ def test_multiple_concurrent_fishing_operations():
     sim = FishSwarmSimulation(width=1400, height=1000, margin=50)
     
     # Team Alpha (near School Alpha at 200, 200)
-    lead_a = BoatAgent((190, 190), speed=150.0)
-    asst_a1 = BoatAgent((230, 200), speed=150.0)
-    asst_a2 = BoatAgent((200, 230), speed=150.0)
     school_a = FishSchool((200, 200), population=25.0)
+    lead_a = BoatAgent((190, 190), speed=150.0, target_color=school_a.color)
+    asst_a1 = BoatAgent((230, 200), speed=150.0, target_color=school_a.color)
+    asst_a2 = BoatAgent((200, 230), speed=150.0, target_color=school_a.color)
     
     # Team Beta (near School Beta at 900, 700)
-    lead_b = BoatAgent((890, 690), speed=150.0)
-    asst_b1 = BoatAgent((930, 700), speed=150.0)
-    asst_b2 = BoatAgent((900, 730), speed=150.0)
     school_b = FishSchool((900, 700), population=25.0)
+    lead_b = BoatAgent((890, 690), speed=150.0, target_color=school_b.color)
+    asst_b1 = BoatAgent((930, 700), speed=150.0, target_color=school_b.color)
+    asst_b2 = BoatAgent((900, 730), speed=150.0, target_color=school_b.color)
     
     for b in [lead_a, asst_a1, asst_a2, lead_b, asst_b1, asst_b2]:
         sim.add_boat(b)

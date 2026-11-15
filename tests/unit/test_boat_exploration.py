@@ -176,19 +176,28 @@ def test_boat_slows_near_waypoint_instead_of_orbiting_it(coordinator):
 # ----------------- Sensor Perception Tests -----------------
 
 def test_boat_sensor_detection():
-    """Boat detects available fish schools within detection_radius."""
-    boat = BoatAgent((200, 200))
-    
+    """Boat detects available fish schools within detection_radius matching its target_color."""
     # School within range (distance 50 < DETECTION_RADIUS 140)
     near_school = FishSchool((250, 200), population=50)
     # School out of range (distance 300 > DETECTION_RADIUS 140)
-    far_school = FishSchool((500, 200), population=50)
+    far_school = FishSchool((500, 200), population=50, color=near_school.color)
     # School in range but already claimed
-    claimed_school = FishSchool((210, 210), population=50)
+    claimed_school = FishSchool((210, 210), population=50, color=near_school.color)
     claimed_school.claim("op_other")
     # School in range but depleted
-    depleted_school = FishSchool((220, 220), population=0)
+    depleted_school = FishSchool((220, 220), population=0, color=near_school.color)
     
+    # Boat matching target color detects near available school
+    boat = BoatAgent((200, 200), target_color=near_school.color)
     detected = boat.detect_schools([near_school, far_school, claimed_school, depleted_school])
     assert len(detected) == 1
     assert detected[0].school_id == near_school.school_id
+
+    # Boat with no active target color returns []
+    uncolored_boat = BoatAgent((200, 200), target_color=None)
+    assert uncolored_boat.detect_schools([near_school]) == []
+
+    # Boat with different target color returns []
+    diff_color = (0, 0, 0)
+    diff_boat = BoatAgent((200, 200), target_color=diff_color)
+    assert diff_boat.detect_schools([near_school]) == []

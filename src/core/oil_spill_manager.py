@@ -192,10 +192,7 @@ class OilSpillManager:
                 )
                 cleaner.target_spill = None
                 cleaner.reset_to_exploring(simulation.world_coordinator)
-                # Pick and begin the next ordinary grid waypoint immediately.
-                cleaner._update_exploring(delta_time, simulation.world_coordinator)
-                if cleaner.target_position is None:
-                    cleaner._update_exploring(delta_time, simulation.world_coordinator)
+                simulation.pier_manager.request_support_return(cleaner, simulation)
                 self._cleaner_to_spill.pop(cleaner.boat_id, None)
                 del self._cleanups[spill_id]
 
@@ -205,7 +202,12 @@ class OilSpillManager:
             if not spill.reported:
                 continue
             for boat in simulation.boats:
-                if boat.boat_id in assigned_cleaner_ids:
+                if boat.needs_rescue or boat.state == BoatState.BROKEN:
+                    continue
+                # The first-contact boat needs to travel through the slick to
+                # experience its slowdown; only unaffected traffic avoids it.
+                if (boat.boat_id in assigned_cleaner_ids
+                        or boat.boat_id in spill.affected_boat_ids):
                     continue
                 offset = boat.position - spill.position
                 safe_distance = spill.radius + 12.0

@@ -249,3 +249,99 @@ def test_movement_tick_spill_roll_can_fail():
     sim.oil_spill_manager.update(sim, 0.1, {boat.boat_id: pygame.Vector2(200, 200)})
 
     assert sim.oil_spill_manager.spills == []
+
+
+def test_cargo_capacities_match_spec():
+    towing = TowingBoat((100, 100))
+    regular = RegularBoat((200, 100))
+    cleaning = CleaningBoat((300, 100))
+
+    assert towing.fish_capacity == 100.0
+    assert regular.fish_capacity == 70.0
+    assert cleaning.fish_capacity == 40.0
+
+
+def test_is_cargo_full_property():
+    boat = RegularBoat((100, 100))
+    assert not boat.is_cargo_full
+    assert boat.remaining_fish_capacity == 70.0
+
+    boat.fish_catch = 69.0
+    assert not boat.is_cargo_full
+
+    boat.fish_catch = 70.0
+    assert boat.is_cargo_full
+    assert boat.remaining_fish_capacity == 0.0
+
+
+def test_record_harvest_stops_at_capacity():
+    boat = RegularBoat((100, 100), fish_capacity=10.0)
+    stored = boat.record_harvest(7.0)
+    assert stored == 7.0
+    assert boat.fish_catch == 7.0
+    assert not boat.is_cargo_full
+
+    stored = boat.record_harvest(5.0)
+    assert stored == 3.0
+    assert boat.fish_catch == 10.0
+    assert boat.is_cargo_full
+
+    # Once full, further harvest returns 0
+    stored = boat.record_harvest(10.0)
+    assert stored == 0.0
+    assert boat.fish_catch == 10.0
+
+
+def test_unload_cargo_empties_and_restores_capacity():
+    boat = TowingBoat((100, 100))
+    boat.record_harvest(100.0)
+    assert boat.is_cargo_full
+
+    unloaded = boat.unload_cargo()
+    assert unloaded == 100.0
+    assert boat.fish_catch == 0.0
+    assert not boat.is_cargo_full
+    assert boat.remaining_fish_capacity == 100.0
+
+
+def test_full_capacity_boat_excluded_from_fishing_participants():
+    sim = FishSwarmSimulation(width=500, height=400, margin=20)
+    boat = RegularBoat((100, 100), fish_capacity=5.0)
+    boat.fish_catch = 5.0
+    sim.add_boat(boat)
+
+    assert boat.is_cargo_full
+    assert boat.remaining_fish_capacity == 0.0
+
+
+def test_full_cargo_renders_desaturated_hull():
+    def render_boat(boat_class, fill_cargo):
+        surface = pygame.Surface((120, 100))
+        surface.fill((3, 7, 11))
+        boat = boat_class((60, 50))
+        if fill_cargo:
+            boat.fish_catch = boat.fish_capacity
+        boat.draw(surface)
+        return pygame.image.tobytes(surface, "RGB")
+
+    for boat_class in (TowingBoat, CleaningBoat, RegularBoat):
+        normal = render_boat(boat_class, False)
+        full = render_boat(boat_class, True)
+        assert normal != full, f"{boat_class.__name__} must look different when cargo is full"
+
+
+def test_unloaded_boat_restores_normal_render():
+    surface_a = pygame.Surface((120, 100))
+    surface_b = pygame.Surface((120, 100))
+    surface_a.fill((3, 7, 11))
+    surface_b.fill((3, 7, 11))
+
+    boat_a = RegularBoat((60, 50))
+    boat_b = RegularBoat((60, 50))
+    boat_b.fish_catch = boat_b.fish_capacity
+    boat_b.unload_cargo()
+
+    boat_a.draw(surface_a)
+    boat_b.draw(surface_b)
+
+    assert pygame.image.tobytes(surface_a, "RGB") == pygame.image.tobytes(surface_b, "RGB")

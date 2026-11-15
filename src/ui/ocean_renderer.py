@@ -6,7 +6,7 @@ import pygame
 
 
 class OceanRenderer:
-    """Caches the water texture and animates a small set of current lines."""
+    """Caches the water gradient and animates layered, gently traveling waves."""
 
     def __init__(self, width: int, height: int):
         self.width = int(width)
@@ -31,42 +31,40 @@ class OceanRenderer:
         self.base.blit(shoal, (0, 0))
 
         rng = random.Random(4731)
-        texture = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
-        for _ in range(380):
-            x = rng.randrange(self.width)
-            y = rng.randrange(self.height)
-            length = rng.randrange(2, 10)
-            tint = (152, 204, 201, rng.randrange(5, 15))
-            pygame.draw.line(texture, tint, (x, y), (x + length, y + rng.choice((-1, 0, 1))), 1)
-        self.base.blit(texture, (0, 0))
-
-        self.ripples = []
-        for _ in range(34):
-            self.ripples.append({
-                "x": rng.randrange(-50, self.width + 50),
-                "y": rng.randrange(0, self.height),
-                "length": rng.randrange(28, 106),
-                "amplitude": rng.uniform(1.2, 4.8),
+        self.wave_bands = []
+        for index in range(24):
+            self.wave_bands.append({
+                "x": rng.randrange(-self.width, self.width),
+                "y": round((index + .5) * self.height / 24
+                           + rng.uniform(-self.height / 36, self.height / 36)),
+                "length": rng.randrange(170, 380),
+                "amplitude": rng.uniform(1.0, 2.6),
                 "phase": rng.uniform(0, math.tau),
-                "speed": rng.uniform(.35, .8),
-                "frequency": rng.uniform(.055, .12),
-                "color": rng.choice(((143, 201, 206, 48), (96, 164, 179, 38),
-                                      (183, 219, 207, 38))),
+                "speed": rng.uniform(.35, .72),
+                "drift": rng.uniform(10.0, 24.0),
+                "frequency": rng.uniform(.009, .022),
+                "width": rng.choice((1, 1, 2)),
+                "color": rng.choice(((103, 174, 191, 24), (83, 148, 170, 22),
+                                      (153, 195, 187, 23))),
             })
         self.ripple_layer = pygame.Surface((self.width, self.height), pygame.SRCALPHA)
 
     def draw(self, surface: pygame.Surface, sim_time: float):
         surface.blit(self.base, (0, 0))
         self.ripple_layer.fill((0, 0, 0, 0))
-        for ripple in self.ripples:
+        for wave in self.wave_bands:
             points = []
-            for step in range(13):
-                x = ripple["x"] + ripple["length"] * step / 12
-                y = (ripple["y"]
-                     + math.sin(step / 12 * math.tau + sim_time * ripple["speed"]
-                                + ripple["phase"]) * ripple["amplitude"]
-                     + math.sin(x * ripple["frequency"] + ripple["phase"]
-                                - sim_time * .22) * ripple["amplitude"] * .42)
+            x_origin = ((wave["x"] + sim_time * wave["drift"])
+                        % (self.width + wave["length"]) - wave["length"])
+            for step in range(33):
+                x = x_origin + wave["length"] * step / 32
+                phase = x * wave["frequency"] - sim_time * wave["speed"] + wave["phase"]
+                y = (wave["y"] + math.sin(phase) * wave["amplitude"]
+                     + math.sin(phase * .53 + sim_time * .17)
+                     * wave["amplitude"] * .32)
                 points.append((round(x), round(y)))
-            pygame.draw.lines(self.ripple_layer, ripple["color"], False, points, 1)
+            pygame.draw.aalines(self.ripple_layer, wave["color"], False, points)
+            if wave["width"] == 2:
+                offset_points = [(x, y + 1) for x, y in points]
+                pygame.draw.aalines(self.ripple_layer, wave["color"], False, offset_points)
         surface.blit(self.ripple_layer, (0, 0))

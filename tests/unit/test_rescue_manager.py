@@ -1,8 +1,9 @@
 import pygame
 
-from src.config import BOAT_BREAK_CHANCE
+from src.config import BOAT_BREAK_CHANCE, RESCUE_PICKUP_RADIUS
 from src.core.simulation import FishSwarmSimulation
-from src.entities.boat_agent import BoatAgent, BoatState, BoatType
+from src.entities.boat_agent import BoatAgent, BoatState, BoatType, RegularBoat, TowingBoat
+from src.entities.fish_school import FishSchool
 
 
 class FixedRng:
@@ -131,3 +132,184 @@ def test_only_towing_boats_can_enter_tow_states():
         assert not boat.transition_to(BoatState.MOVING_TO_TOW)
         boat.state = BoatState.MOVING_TO_TOW
         assert not boat.transition_to(BoatState.TOWING)
+
+
+def test_broken_boat_flags_itself_and_registers_with_rescue_manager():
+    sim = FishSwarmSimulation(width=600, height=500, margin=30)
+    boat = RegularBoat((250, 250))
+    sim.add_boat(boat)
+    assert not boat.needs_rescue
+
+    boat.transition_to(BoatState.BROKEN)
+    assert boat.needs_rescue is True
+    assert boat.state == BoatState.BROKEN
+
+    # Simulation poll or rescue_manager poll registers the broken boat
+    sim.rescue_manager.poll(sim)
+    assert len(sim.rescue_manager._incidents) == 1
+    incident = sim.rescue_manager._incidents[0]
+    assert incident["wreck"].boat_id == boat.boat_id
+    assert incident["phase"] == "waiting"
+    assert incident["destination"] is not None
+
+
+def test_idle_towing_boat_prioritizes_rescue_over_wandering_and_fishing():
+    sim = FishSwarmSimulation(width=600, height=500, margin=30)
+    wreck = RegularBoat((200, 200))
+    wreck.transition_to(BoatState.BROKEN)
+    towing_1 = TowingBoat((220, 220))
+    towing_2 = TowingBoat((240, 220))
+    # Place fish school right next to towing boats
+    school = FishSchool((230, 230), population=50.0)
+
+    sim.add_boat(wreck)
+    sim.add_boat(towing_1)
+    sim.add_boat(towing_2)
+    sim.add_school(school)
+
+    # One update step: poll claims towing boats for rescue before fishing discovery scan
+    sim.update(0.1)
+
+    assert towing_1.state == BoatState.MOVING_TO_TOW or towing_1.state == BoatState.TOWING
+    assert towing_2.state == BoatState.MOVING_TO_TOW or towing_2.state == BoatState.TOWING
+    assert towing_1.claimed_rescue == wreck
+    assert towing_2.claimed_rescue == wreck
+    # Did not get recruited into or start a fishing operation
+    assert len(sim.operation_coordinator.operations) == 0
+
+
+def test_towing_boat_navigation_and_attachment_within_pickup_radius():
+    sim = FishSwarmSimulation(width=600, height=500, margin=30)
+    wreck = RegularBoat((300, 300))
+    wreck.transition_to(BoatState.BROKEN)
+    # Start rescuers further away than pickup radius
+    towing_1 = TowingBoat((300, 300 + RESCUE_PICKUP_RADIUS + 40))
+    towing_2 = TowingBoat((300, 300 - RESCUE_PICKUP_RADIUS - 40))
+
+    sim.add_boat(wreck)
+    sim.add_boat(towing_1)
+    sim.add_boat(towing_2)
+
+    sim.rescue_manager.poll(sim)
+    incident = sim.rescue_manager._incidents[0]
+    assert incident["phase"] == "approach"
+    assert towing_1.state == BoatState.MOVING_TO_TOW
+    assert towing_2.state == BoatState.MOVING_TO_TOW
+
+    # Advance until they enter pickup radius and trigger attachment
+    attached = False
+    for _ in range(50):
+        for b in [towing_1, towing_2]:
+            b.update(0.1, sim.world_coordinator)
+        sim.rescue_manager.update(sim, 0.1)
+        if incident["phase"] == "tow":
+            attached = True
+            break
+
+    assert attached is True
+    assert towing_1.state == BoatState.TOWING
+    assert towing_2.state == BoatState.TOWING
+
+
+def test_full_tow_lifecycle_repairs_wreck_and_releases_towing_boats():
+    sim = FishSwarmSimulation(width=500, height=400, margin=20)
+    wreck = RegularBoat((200, 200))
+    wreck.transition_to(BoatState.BROKEN)
+    towing_1 = TowingBoat((200, 215))
+    towing_2 = TowingBoat((200, 185))
+
+    sim.add_boat(wreck)
+    sim.add_boat(towing_1)
+    sim.add_boat(towing_2)
+
+    # First update attaches
+    sim.rescue_manager.update(sim, 0.1)
+    incident = sim.rescue_manager._incidents[0]
+    assert incident["phase"] == "tow"
+
+    # Step simulation until convoy reaches destination and wreck is repaired
+    destination = incident["destination"]
+    for _ in range(150):
+        sim.rescue_manager.update(sim, 0.1)
+        if len(sim.rescue_manager._incidents) == 0:
+            break
+
+    assert len(sim.rescue_manager._incidents) == 0
+    # Wreck restored to operational status
+    assert wreck.state == BoatState.EXPLORING
+    assert wreck.needs_rescue is False
+    assert sim.world_coordinator.bounds.is_inside(wreck.position, use_margin=True)
+    # Towing boats released back to default behavior
+    assert towing_1.state == BoatState.EXPLORING
+    assert towing_2.state == BoatState.EXPLORING
+    assert towing_1.claimed_rescue is None
+    assert towing_2.claimed_rescue is None
+
+
+def test_single_towing_boat_lifecycle():
+    sim = FishSwarmSimulation(width=500, height=400, margin=20)
+    sim.rescue_manager.required_rescuers = 1
+    wreck = RegularBoat((200, 200))
+    wreck.transition_to(BoatState.BROKEN)
+    towing = TowingBoat((200, 220))
+
+    sim.add_boat(wreck)
+    sim.add_boat(towing)
+
+    sim.rescue_manager.poll(sim)
+    incident = sim.rescue_manager._incidents[0]
+    assert incident["phase"] == "approach"
+    sim.rescue_manager.update(sim, 0.1)
+    assert incident["phase"] == "tow"
+    assert towing.state == BoatState.TOWING
+
+    for _ in range(150):
+        sim.rescue_manager.update(sim, 0.1)
+        if len(sim.rescue_manager._incidents) == 0:
+            break
+
+    assert len(sim.rescue_manager._incidents) == 0
+    assert wreck.state == BoatState.EXPLORING
+    assert wreck.needs_rescue is False
+    assert towing.state == BoatState.EXPLORING
+    assert towing.claimed_rescue is None
+
+
+def test_rescue_manager_draw_renders_active_tow_lines_and_status():
+    sim = FishSwarmSimulation(width=500, height=400, margin=20)
+    wreck = RegularBoat((200, 200))
+    wreck.transition_to(BoatState.BROKEN)
+    towing_1 = TowingBoat((210, 210))
+    towing_2 = TowingBoat((190, 190))
+    sim.add_boat(wreck)
+    sim.add_boat(towing_1)
+    sim.add_boat(towing_2)
+
+    # 1. Waiting phase render
+    sim.rescue_manager.register_broken_boat(sim, wreck)
+    incident = sim.rescue_manager._incidents[0]
+    incident["phase"] = "waiting"
+
+    surface = pygame.Surface((500, 400))
+    surface.fill((20, 50, 85))
+    initial_pixels = pygame.image.tobytes(surface, "RGB")
+
+    sim.rescue_manager.draw(surface)
+    waiting_pixels = pygame.image.tobytes(surface, "RGB")
+    assert waiting_pixels != initial_pixels, "Waiting status beacon and badge must be rendered"
+
+    # 2. Approach phase render
+    incident["phase"] = "approach"
+    incident["rescuers"] = [towing_1, towing_2]
+    surface.fill((20, 50, 85))
+    sim.rescue_manager.draw(surface)
+    approach_pixels = pygame.image.tobytes(surface, "RGB")
+    assert approach_pixels != initial_pixels, "Approach lines and badge must be rendered"
+
+    # 3. Tow phase render
+    incident["phase"] = "tow"
+    surface.fill((20, 50, 85))
+    sim.rescue_manager.draw(surface)
+    tow_pixels = pygame.image.tobytes(surface, "RGB")
+    assert tow_pixels != initial_pixels, "Active tow cables and badge must be rendered"
+    assert tow_pixels != approach_pixels, "Tow rendering must be visually distinct from approach"

@@ -27,6 +27,10 @@ class Message:
     OIL_SPILL_ALERT = "OIL_SPILL_ALERT"
     OIL_SPILL_DISTRESS = "OIL_SPILL_DISTRESS"
     OIL_SPILL_CLEARED = "OIL_SPILL_CLEARED"
+    RESCUE_REQUEST = "RESCUE_REQUEST"
+    RESCUE_DISPATCH = "RESCUE_DISPATCH"
+    RESCUE_ATTACHED = "RESCUE_ATTACHED"
+    RESCUE_COMPLETED = "RESCUE_COMPLETED"
 
 class CommsHub:
     """
@@ -76,6 +80,14 @@ class CommsHub:
 
         for target_id, handler in list(self._handlers.items()):
             if target_id != sender_id:
+                handler(msg)
+
+    def broadcast(self, msg: Message):
+        """Broadcasts an already instantiated Message."""
+        self._message_log.append(msg)
+        self.total_messages_sent += 1
+        for target_id, handler in list(self._handlers.items()):
+            if target_id != msg.sender_id:
                 handler(msg)
 
     def send_direct(
