@@ -76,6 +76,26 @@ class RescueManager:
 
         self._dispatch_waiting_calls(simulation)
 
+    def cancel_tows_for_whirlpool(self, simulation):
+        """Release assigned tow crews and leave their wrecks broken at the event start."""
+        retained_incidents = []
+        for incident in self._incidents:
+            rescuers = incident["rescuers"]
+            if incident["phase"] not in ("approach", "tow") or not rescuers:
+                retained_incidents.append(incident)
+                continue
+
+            wreck = incident["wreck"]
+            wreck.needs_rescue = True
+            wreck.state = BoatState.BROKEN
+            wreck.velocity.update(0, 0)
+            wreck.target_position = None
+            for rescuer in rescuers:
+                if not rescuer.needs_rescue and rescuer.state != BoatState.BROKEN:
+                    rescuer.reset_to_exploring(simulation.world_coordinator)
+
+        self._incidents = retained_incidents
+
     def update(self, simulation, delta_time, previous_positions=None):
         self.poll(simulation)
         self._update_tows(simulation, delta_time)

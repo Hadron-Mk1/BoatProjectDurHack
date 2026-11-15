@@ -273,6 +273,48 @@ def test_boat_breaking_during_approach_is_removed_from_readiness_and_not_resumed
     assert survivor.state == BoatState.EXPLORING
 
 
+def test_whirlpool_cancels_active_tow_and_leaves_wreck_broken():
+    sim = FishSwarmSimulation()
+    wreck = RegularBoat((300, 300))
+    wreck.transition_to(BoatState.BROKEN)
+    tow_one = TowingBoat((300, 290))
+    tow_two = TowingBoat((310, 300))
+    for boat in (wreck, tow_one, tow_two):
+        sim.add_boat(boat)
+
+    sim.rescue_manager.register_broken_boat(sim, wreck)
+    incident = sim.rescue_manager._incidents[0]
+    sim.rescue_manager.update(sim, 0.1)
+    assert incident["phase"] == "tow"
+    assert tow_one.state == BoatState.TOWING
+    assert tow_two.state == BoatState.TOWING
+    wreck_position = wreck.position.copy()
+
+    wm = sim.whirlpool_manager
+    wm.trigger_spawn(sim, center=(600, 400))
+
+    assert not sim.rescue_manager._incidents
+    assert wreck.state == BoatState.BROKEN
+    assert wreck.needs_rescue
+    assert wreck.position == wreck_position
+    assert tow_one.state == BoatState.WHIRLPOOL
+    assert tow_two.state == BoatState.WHIRLPOOL
+    assert tow_one.suspended_task["state"] == BoatState.EXPLORING
+    assert tow_two.suspended_task["state"] == BoatState.EXPLORING
+
+    # Re-registering the wreck during the event must not dispatch whirlpool boats.
+    sim.rescue_manager.poll(sim)
+    assert wreck.state == BoatState.BROKEN
+    assert wreck.position == wreck_position
+    assert not sim.rescue_manager._incidents[0]["rescuers"]
+
+    wm.despawn(sim)
+    assert tow_one.state == BoatState.EXPLORING
+    assert tow_two.state == BoatState.EXPLORING
+    assert wreck.state == BoatState.BROKEN
+    assert wreck.position == wreck_position
+
+
 def test_specialized_boats_suspend_and_resume_their_exact_tasks():
     sim = FishSwarmSimulation()
     wreck = RegularBoat(position=(100, 100))

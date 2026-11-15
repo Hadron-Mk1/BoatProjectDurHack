@@ -177,9 +177,16 @@ class PierManager:
                 boat.mission = None
 
             if boat.mission is None:
-                slot = next((index for index, mission in enumerate(self.missions)
-                             if mission.amount <= boat.fish_capacity
-                             and self.mission_cooldowns[index] <= 0.0), None)
+                compatible_slots = [
+                    index for index, mission in enumerate(self.missions)
+                    if mission.amount <= boat.fish_capacity
+                    and self.mission_cooldowns[index] <= 0.0
+                ]
+                slot = max(
+                    compatible_slots,
+                    key=lambda index: self.missions[index].amount,
+                    default=None,
+                )
                 if slot is not None:
                     mission = self.missions[slot]
                     self.missions[slot] = self._new_mission(mission.size, previous=mission)

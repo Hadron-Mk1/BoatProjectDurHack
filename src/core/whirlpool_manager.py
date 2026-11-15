@@ -33,7 +33,7 @@ class WhirlpoolManager:
         1. Approach Phase: Boats cruise and steer smoothly towards their assigned ring slots.
            Timer, progress bar fill, and counter-orbit rotation do NOT start yet.
         2. Countering Phase: Once every non-broken boat arrives at its target position,
-           the 15-second "Fighting the whirlpool"
+           the 15-second "Counteracting Whirlpool"
            timer, progress bar fill, and active counter-orbit begin.
     - Inner-First Dual-Ring Distribution:
         Divide active boats 50/50, filling the inner ring first up to half the count,
@@ -41,7 +41,7 @@ class WhirlpoolManager:
     - Captures active boats (strictly excluding broken boats).
     - Seamlessly restores suspended tasks upon despawn.
     - Renders sleek world-space progress bar floating directly above the whirlpool with
-      label "Fighting the whirlpool".
+      label "Counteracting Whirlpool".
     """
 
     RAMP_DURATION = 2.0         # Seconds to spin up on spawn and dissipate on despawn
@@ -159,6 +159,7 @@ class WhirlpoolManager:
             self.center = self._find_spawn_position(simulation)
 
         # Capture active boats, distribute inner-first, and suspend tasks
+        simulation.rescue_manager.cancel_tows_for_whirlpool(simulation)
         self._capture_active_boats(simulation)
 
         self.phase = "approach"
@@ -589,7 +590,7 @@ class WhirlpoolManager:
         Renders the sleek world-space whirlpool status bar floating directly above
         the whirlpool in canvas coordinates.
         Features rounded corners, subtle drop shadow, sleek gradient fill, and
-        the label "Fighting the whirlpool" during the countering phase.
+        the label "Counteracting Whirlpool" during the countering phase.
         Hides automatically once the event concludes.
         """
         if not self.is_active:
@@ -658,9 +659,9 @@ class WhirlpoolManager:
             if font is None:
                 font = pygame.font.Font(None, 14)
 
-        # Label: "Fighting the whirlpool" during countering phase, or "Approaching Whirlpool" during approach
+        # Label: "Counteracting Whirlpool" during countering phase, or "Approaching Whirlpool" during approach
         if self.phase == "countering":
-            title_text = "Fighting the whirlpool"
+            title_text = "Counteracting Whirlpool"
         else:
             title_text = "Approaching Whirlpool"
 
