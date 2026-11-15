@@ -24,7 +24,9 @@ from src.core.rescue_manager import RescueManager
 from src.core.oil_spill_manager import OilSpillManager
 from src.core.pier_manager import PierManager
 from src.core.whirlpool_manager import WhirlpoolManager
-from src.entities.boat_agent import BoatAgent, BoatState, BoatType, SonarBoat
+from src.entities.boat_agent import (
+    BoatAgent, BoatState, BoatType, CleaningBoat, RegularBoat, SonarBoat, TowingBoat,
+)
 from src.entities.fish_school import FishSchool
 
 class FishSwarmSimulation:
@@ -34,6 +36,12 @@ class FishSwarmSimulation:
 
     MIN_SCHOOL_SPAWN_DISTANCE = 220.0
     SCHOOL_SPAWN_ATTEMPTS = 128
+    BOAT_CLASSES = {
+        BoatType.REGULAR: RegularBoat,
+        BoatType.TOWING: TowingBoat,
+        BoatType.CLEANING: CleaningBoat,
+        BoatType.SONAR: SonarBoat,
+    }
     
     def __init__(
         self,
@@ -70,6 +78,90 @@ class FishSwarmSimulation:
             boat.boat_id,
             lambda msg: None,  # Hook for agent internal message handling
         )
+        self.whirlpool_manager.include_boat(boat)
+
+    def boat_count(self, boat_type: BoatType) -> int:
+        return sum(boat.boat_type == boat_type for boat in self.boats)
+
+    def adjust_boat_count(self, boat_type: BoatType, amount: int) -> bool:
+        """Add or safely retire one boat of the requested type."""
+        boat_class = self.BOAT_CLASSES.get(boat_type)
+        if boat_class is None or amount == 0:
+            return False
+        if amount > 0:
+            self.add_boat(boat_class(self._find_boat_spawn_position()))
+            return True
+
+        candidates = [boat for boat in self.boats if boat.boat_type == boat_type]
+        if not candidates:
+            return False
+        # Prefer retiring idle/exploring boats and avoid breaking an active tow
+        # or spill-cleanup task if another vessel of that class is available.
+        candidates.sort(key=lambda boat: (
+            boat.state in (BoatState.MOVING_TO_TOW, BoatState.TOWING,
+                           BoatState.MOVING_TO_SPILL, BoatState.CLEANING),
+            boat.state == BoatState.WHIRLPOOL,
+            boat.needs_rescue,
+            boat.boat_id,
+        ))
+        return self.remove_boat(candidates[0])
+
+    def _find_boat_spawn_position(self):
+        """Find open water for a newly added boat, away from the pier and fleet."""
+        bounds = self.world_coordinator.bounds
+        candidates = []
+        for _ in range(128):
+            point = pygame.Vector2(
+                random.uniform(bounds.min_x + 45.0, bounds.max_x - 45.0),
+                random.uniform(bounds.min_y + 45.0, bounds.max_y - 45.0),
+            )
+            if not self.pier_manager.is_clear_of_dock(point, 45.0):
+                continue
+            nearest_boat = min(
+                (point.distance_to(boat.position) for boat in self.boats),
+                default=float("inf"),
+            )
+            if nearest_boat >= 48.0:
+                return point
+            candidates.append((nearest_boat, point))
+        if candidates:
+            return max(candidates, key=lambda candidate: candidate[0])[1]
+        return pygame.Vector2(bounds.min_x + 55.0, bounds.min_y + 55.0)
+
+    def remove_boat(self, boat: BoatAgent) -> bool:
+        """Detach a vessel from its tasks and every simulation subsystem."""
+        if boat not in self.boats:
+            return False
+        operation = self.operation_coordinator.get_boat_operation(boat.boat_id)
+        if operation is not None:
+            whirlpool_members = [
+                member for member in self.boats
+                if member.boat_id in operation.all_participating_boat_ids
+                and member is not boat and member.state == BoatState.WHIRLPOOL
+            ]
+            self.operation_coordinator.cancel_operation(
+                operation.operation_id, self.boats, self.get_school(operation.school_id),
+                self.world_coordinator,
+            )
+            for member in whirlpool_members:
+                if member.suspended_task is not None:
+                    task = member.suspended_task
+                    task["state"] = BoatState.EXPLORING
+                    task["current_operation_id"] = None
+                    task["assigned_school_id"] = None
+                    task["assigned_school_pos"] = None
+                    task["target_position"] = None
+                member.state = BoatState.WHIRLPOOL
+                member.velocity.update(0, 0)
+        self.rescue_manager.remove_boat(self, boat)
+        self.oil_spill_manager.remove_boat(boat)
+        self.whirlpool_manager.remove_boat(boat)
+        self.pier_manager.release_dock(boat.boat_id)
+        self.pier_manager.force_mission_refresh.discard(boat.boat_id)
+        self.world_coordinator.release_exploration_target(boat.boat_id)
+        self.comms_hub.unregister_agent(boat.boat_id)
+        self.boats.remove(boat)
+        return True
 
     def add_school(self, school: FishSchool):
         """Adds a fish school to the simulation."""

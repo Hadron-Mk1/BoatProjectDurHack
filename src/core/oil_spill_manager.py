@@ -40,6 +40,19 @@ class OilSpillManager:
         """Claim any active spill before the normal boat AI update runs."""
         self._dispatch_waiting_calls(simulation)
 
+    def remove_boat(self, boat):
+        """Release spill bookkeeping for a vessel removed from the fleet."""
+        for spill_id, cleanup in list(self._cleanups.items()):
+            if cleanup["cleaner"] is boat:
+                del self._cleanups[spill_id]
+                self._cleaner_to_spill.pop(boat.boat_id, None)
+        for spill in self.spills:
+            spill.affected_boat_ids.discard(boat.boat_id)
+            if spill.distressed_by == boat.boat_id:
+                spill.distressed_by = None
+            if spill.created_by == boat.boat_id:
+                spill.created_by = None
+
     def _generate_from_movement(self, simulation, previous_positions):
         for boat in simulation.boats:
             if boat.state == BoatState.WHIRLPOOL:

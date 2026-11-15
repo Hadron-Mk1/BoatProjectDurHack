@@ -288,6 +288,44 @@ class WhirlpoolManager:
                 return False
         return True
 
+    def remove_boat(self, boat):
+        """Forget a fleet vessel removed while an event is active."""
+        self.affected_boats = [member for member in self.affected_boats
+                               if member.boat_id != boat.boat_id]
+        self.inner_ring_boats = [member for member in self.inner_ring_boats
+                                 if member.boat_id != boat.boat_id]
+        self.outer_ring_boats = [member for member in self.outer_ring_boats
+                                 if member.boat_id != boat.boat_id]
+        self.boat_orbital_slots.pop(boat.boat_id, None)
+
+    def include_boat(self, boat):
+        """Capture a boat added to the fleet while a whirlpool is already active."""
+        if (not self.is_active or boat.state == BoatState.BROKEN
+                or getattr(boat, "needs_rescue", False)):
+            return
+        boat.suspend_task()
+        self.affected_boats.append(boat)
+        if len(self.inner_ring_boats) <= len(self.outer_ring_boats):
+            ring_boats, radius, ring_name, phase = (
+                self.inner_ring_boats, self.inner_radius, "inner", 0.0,
+            )
+        else:
+            ring_boats, radius, ring_name, phase = (
+                self.outer_ring_boats, self.outer_radius, "outer", math.pi,
+            )
+        ring_boats.append(boat)
+        ring_boats.sort(
+            key=lambda member: math.atan2(member.position.y - self.center.y,
+                                          member.position.x - self.center.x)
+        )
+        count = len(ring_boats)
+        for index, member in enumerate(ring_boats):
+            self.boat_orbital_slots[member.boat_id] = {
+                "radius": radius,
+                "base_offset": phase + (2.0 * math.pi / count) * index,
+                "ring": ring_name,
+            }
+
     def _capture_active_boats(self, simulation):
         """
         Filters active boats, explicitly excluding broken boats.

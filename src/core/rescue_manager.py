@@ -96,6 +96,31 @@ class RescueManager:
 
         self._incidents = retained_incidents
 
+    def remove_boat(self, simulation, boat):
+        """Cancel rescue incidents involving a vessel being removed."""
+        retained_incidents = []
+        for incident in self._incidents:
+            rescuers = incident["rescuers"]
+            if incident["wreck"] is not boat and boat not in rescuers:
+                retained_incidents.append(incident)
+                continue
+            for rescuer in rescuers:
+                if rescuer is boat or rescuer.needs_rescue or rescuer.state == BoatState.BROKEN:
+                    continue
+                if rescuer.state == BoatState.WHIRLPOOL:
+                    task = rescuer.suspended_task
+                    if task is not None:
+                        task["state"] = BoatState.EXPLORING
+                        task["current_operation_id"] = None
+                        task["assigned_school_id"] = None
+                        task["assigned_school_pos"] = None
+                        task["target_position"] = None
+                        task["claimed_rescue"] = None
+                    rescuer.claimed_rescue = None
+                else:
+                    rescuer.reset_to_exploring(simulation.world_coordinator)
+        self._incidents = retained_incidents
+
     def update(self, simulation, delta_time, previous_positions=None):
         self.poll(simulation)
         self._update_tows(simulation, delta_time)

@@ -35,6 +35,15 @@ class PierManager:
     MISSION_PANEL_WIDTH = 236
     MISSION_PANEL_HEIGHT = 194
     MISSION_BUTTON_SIZE = 36
+    FLEET_PANEL_WIDTH = 248
+    FLEET_PANEL_HEIGHT = 230
+    FLEET_ROW_HEIGHT = 43
+    FLEET_BOAT_TYPES = (
+        (BoatType.REGULAR, "Regular"),
+        (BoatType.TOWING, "Towing"),
+        (BoatType.CLEANING, "Cleaning"),
+        (BoatType.SONAR, "Sonar"),
+    )
 
     def __init__(self, width: float, height: float, margin: float, rng=None):
         self.width = float(width)
@@ -49,6 +58,7 @@ class PierManager:
         self.missions = [self._new_mission(size) for size in self.MISSION_RANGES]
         self.mission_cooldowns = [0.0 for _ in self.missions]
         self.menu_open = False
+        self.fleet_menu_open = False
         self.dock_slots = {}
         self.docked_until = {}
         self.waiting_for_dock = set()
@@ -215,12 +225,35 @@ class PierManager:
 
     def _menu_panel_rect(self, surface):
         header = self._menu_header_rect(surface)
-        return pygame.Rect(
-            header.right - self.MISSION_PANEL_WIDTH,
-            header.y - self.MISSION_PANEL_HEIGHT,
-            self.MISSION_PANEL_WIDTH,
-            self.MISSION_PANEL_HEIGHT,
-        )
+        x = max(8, min(header.right - self.MISSION_PANEL_WIDTH,
+                       surface.get_width() - self.MISSION_PANEL_WIDTH - 8))
+        y = header.bottom + 5
+        if y + self.MISSION_PANEL_HEIGHT > surface.get_height() - 8:
+            y = header.y - self.MISSION_PANEL_HEIGHT - 5
+        return pygame.Rect(x, max(8, y), self.MISSION_PANEL_WIDTH, self.MISSION_PANEL_HEIGHT)
+
+    def _fleet_header_rect(self, surface):
+        size = self.MISSION_BUTTON_SIZE
+        repair_dock = self.repair_dock_rect()
+        return pygame.Rect(repair_dock.left, repair_dock.top - size, size, size)
+
+    def _fleet_panel_rect(self, surface):
+        header = self._fleet_header_rect(surface)
+        x = max(8, min(header.right + 4,
+                       surface.get_width() - self.FLEET_PANEL_WIDTH - 8))
+        y = header.bottom + 5
+        if y + self.FLEET_PANEL_HEIGHT > surface.get_height() - 8:
+            y = header.y - self.FLEET_PANEL_HEIGHT - 5
+        return pygame.Rect(x, max(8, y), self.FLEET_PANEL_WIDTH, self.FLEET_PANEL_HEIGHT)
+
+    def _fleet_row_rect(self, panel, index):
+        return pygame.Rect(panel.x + 7, panel.y + 31 + index * self.FLEET_ROW_HEIGHT,
+                           panel.width - 14, 39)
+
+    def _fleet_adjust_button_rects(self, row):
+        plus = pygame.Rect(row.right - 31, row.centery - 12, 24, 24)
+        minus = pygame.Rect(plus.x - 28, plus.y, 24, 24)
+        return minus, plus
 
     def dock_rect(self):
         """Solid rectangular footprint of the pier, extending down the east edge."""
@@ -371,16 +404,35 @@ class PierManager:
                 boat.heading = math.atan2(boat.velocity.y, boat.velocity.x)
             return
 
-    def handle_event(self, event, surface):
-        """Toggle the mission dropdown from its header and close it on outside clicks."""
+    def handle_event(self, event, surface, simulation=None):
+        """Handle mission and live fleet controls on the pier."""
         if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
             return
-        header = self._menu_header_rect(surface)
-        panel = self._menu_panel_rect(surface)
-        if header.collidepoint(event.pos):
+        mission_header = self._menu_header_rect(surface)
+        fleet_header = self._fleet_header_rect(surface)
+        mission_panel = self._menu_panel_rect(surface)
+        fleet_panel = self._fleet_panel_rect(surface)
+        if mission_header.collidepoint(event.pos):
             self.menu_open = not self.menu_open
-        elif self.menu_open and not panel.collidepoint(event.pos):
+            self.fleet_menu_open = False
+        elif fleet_header.collidepoint(event.pos):
+            self.fleet_menu_open = not self.fleet_menu_open
             self.menu_open = False
+        elif self.fleet_menu_open and fleet_panel.collidepoint(event.pos):
+            if simulation is not None:
+                for index, (boat_type, _) in enumerate(self.FLEET_BOAT_TYPES):
+                    row = self._fleet_row_rect(fleet_panel, index)
+                    minus, plus = self._fleet_adjust_button_rects(row)
+                    if minus.collidepoint(event.pos):
+                        simulation.adjust_boat_count(boat_type, -1)
+                        return
+                    if plus.collidepoint(event.pos):
+                        simulation.adjust_boat_count(boat_type, 1)
+                        return
+        elif self.menu_open and not mission_panel.collidepoint(event.pos):
+            self.menu_open = False
+        elif self.fleet_menu_open and not fleet_panel.collidepoint(event.pos):
+            self.fleet_menu_open = False
 
     def _draw_ambient_people(self, surface: pygame.Surface, sim_time: float = 0.0):
         """
@@ -437,7 +489,8 @@ class PierManager:
                 # Subtle dark hair / sailor cap
                 pygame.draw.circle(surface, (35, 45, 60), (head_center[0], head_center[1] - 1), 2)
 
-    def draw(self, surface, font=None, show_ui=True, sim_time: float = 0.0):
+    def draw(self, surface, font=None, show_ui=True, sim_time: float = 0.0,
+             simulation=None):
         """Draw a slim right-edge jetty and a polished, collapsible mission list."""
         dock = self.dock_rect()
         pygame.draw.polygon(surface, (73, 57, 43), [
@@ -512,40 +565,81 @@ class PierManager:
         arrow_surf = font.render("<", True, (193, 218, 226))
         surface.blit(arrow_surf, arrow_surf.get_rect(center=header.center))
 
-        if not self.menu_open:
+        fleet_header = self._fleet_header_rect(surface)
+        pygame.draw.rect(surface, (11, 27, 41), fleet_header, border_radius=8)
+        pygame.draw.rect(surface, (93, 158, 183), fleet_header, 1, border_radius=8)
+        fleet_icon = font.render(">", True, (193, 218, 226))
+        surface.blit(fleet_icon, fleet_icon.get_rect(center=fleet_header.center))
+
+        if not self.menu_open and not self.fleet_menu_open:
             return
 
-        panel = self._menu_panel_rect(surface)
-        panel_fill = pygame.Surface(panel.size, pygame.SRCALPHA)
-        pygame.draw.rect(panel_fill, (10, 24, 37, 150), panel_fill.get_rect(), border_radius=9)
-        surface.blit(panel_fill, panel)
-        pygame.draw.rect(surface, (47, 78, 94), panel, 1, border_radius=9)
         heading_font = pygame.font.SysFont("Arial", 13, bold=True)
-        heading = heading_font.render("Missions", True, (229, 240, 245))
-        surface.blit(heading, heading.get_rect(center=(panel.centerx, panel.y + 17)))
         small_font = pygame.font.SysFont("Arial", 10, bold=True)
-        amount_font = pygame.font.SysFont("Arial", 16, bold=True)
-        color_names = {value: name.upper() for name, value in FISH_COLOR_MAP.items()}
-        for index, mission in enumerate(self.missions):
-            row = pygame.Rect(panel.x + 7, panel.y + 31 + index * 49,
-                              panel.width - 14, 45)
-            row_fill = pygame.Surface(row.size, pygame.SRCALPHA)
-            pygame.draw.rect(row_fill, (20, 41, 56, 135), row_fill.get_rect(), border_radius=6)
-            surface.blit(row_fill, row)
-            pygame.draw.rect(surface, (51, 76, 88), row, 1, border_radius=6)
-            pygame.draw.rect(surface, mission.color, (row.x + 1, row.y + 5, 3, row.height - 10),
-                             border_radius=2)
-            pygame.draw.circle(surface, mission.color, (row.x + 19, row.centery), 6)
-            remaining = self.mission_cooldowns[index]
-            if remaining > 0.0:
-                resetting = small_font.render(f"RESETTING  {remaining:.1f}s", True,
-                                               (245, 190, 105))
-                surface.blit(resetting, (row.x + 32, row.centery - 5))
-                continue
-            size_label = small_font.render(mission.size, True, (152, 183, 196))
-            amount_label = amount_font.render(f"{mission.amount:.0f}", True, (242, 246, 239))
-            fish_label = small_font.render(color_names.get(mission.color, "FISH"), True,
-                                           (166, 193, 201))
-            surface.blit(size_label, (row.x + 32, row.y + 5))
-            surface.blit(amount_label, (row.x + 32, row.y + 18))
-            surface.blit(fish_label, (row.right - fish_label.get_width() - 8, row.centery - 5))
+        if self.menu_open:
+            panel = self._menu_panel_rect(surface)
+            panel_fill = pygame.Surface(panel.size, pygame.SRCALPHA)
+            pygame.draw.rect(panel_fill, (10, 24, 37, 150), panel_fill.get_rect(), border_radius=9)
+            surface.blit(panel_fill, panel)
+            pygame.draw.rect(surface, (47, 78, 94), panel, 1, border_radius=9)
+            heading = heading_font.render("Missions", True, (229, 240, 245))
+            surface.blit(heading, heading.get_rect(center=(panel.centerx, panel.y + 17)))
+            amount_font = pygame.font.SysFont("Arial", 16, bold=True)
+            color_names = {value: name.upper() for name, value in FISH_COLOR_MAP.items()}
+            for index, mission in enumerate(self.missions):
+                row = pygame.Rect(panel.x + 7, panel.y + 31 + index * 49,
+                                  panel.width - 14, 45)
+                row_fill = pygame.Surface(row.size, pygame.SRCALPHA)
+                pygame.draw.rect(row_fill, (20, 41, 56, 135), row_fill.get_rect(), border_radius=6)
+                surface.blit(row_fill, row)
+                pygame.draw.rect(surface, (51, 76, 88), row, 1, border_radius=6)
+                pygame.draw.rect(surface, mission.color, (row.x + 1, row.y + 5, 3, row.height - 10),
+                                 border_radius=2)
+                pygame.draw.circle(surface, mission.color, (row.x + 19, row.centery), 6)
+                remaining = self.mission_cooldowns[index]
+                if remaining > 0.0:
+                    resetting = small_font.render(f"RESETTING  {remaining:.1f}s", True,
+                                                   (245, 190, 105))
+                    surface.blit(resetting, (row.x + 32, row.centery - 5))
+                    continue
+                size_label = small_font.render(mission.size, True, (152, 183, 196))
+                amount_label = amount_font.render(f"{mission.amount:.0f}", True, (242, 246, 239))
+                fish_label = small_font.render(color_names.get(mission.color, "FISH"), True,
+                                               (166, 193, 201))
+                surface.blit(size_label, (row.x + 32, row.y + 5))
+                surface.blit(amount_label, (row.x + 32, row.y + 18))
+                surface.blit(fish_label, (row.right - fish_label.get_width() - 8, row.centery - 5))
+
+        if self.fleet_menu_open:
+            panel = self._fleet_panel_rect(surface)
+            panel_fill = pygame.Surface(panel.size, pygame.SRCALPHA)
+            pygame.draw.rect(panel_fill, (10, 24, 37, 205), panel_fill.get_rect(), border_radius=9)
+            surface.blit(panel_fill, panel)
+            pygame.draw.rect(surface, (47, 78, 94), panel, 1, border_radius=9)
+            heading = heading_font.render("Fleet", True, (229, 240, 245))
+            surface.blit(heading, heading.get_rect(center=(panel.centerx, panel.y + 17)))
+            count_font = pygame.font.SysFont("Arial", 14, bold=True)
+            for index, (boat_type, label) in enumerate(self.FLEET_BOAT_TYPES):
+                row = self._fleet_row_rect(panel, index)
+                row_fill = pygame.Surface(row.size, pygame.SRCALPHA)
+                pygame.draw.rect(row_fill, (20, 41, 56, 190), row_fill.get_rect(), border_radius=6)
+                surface.blit(row_fill, row)
+                pygame.draw.rect(surface, (51, 76, 88), row, 1, border_radius=6)
+                label_surf = small_font.render(label, True, (202, 220, 226))
+                surface.blit(label_surf, (row.x + 10, row.centery - label_surf.get_height() // 2))
+                count = simulation.boat_count(boat_type) if simulation is not None else 0
+                count_surf = count_font.render(str(count), True, (242, 246, 239))
+                minus, plus = self._fleet_adjust_button_rects(row)
+                surface.blit(count_surf, count_surf.get_rect(center=(minus.left - 15, row.centery)))
+                self._draw_fleet_adjust_button(surface, minus, "−", enabled=count > 0)
+                self._draw_fleet_adjust_button(surface, plus, "+", enabled=True)
+
+    @staticmethod
+    def _draw_fleet_adjust_button(surface, rect, label, enabled=True):
+        fill = (24, 58, 73) if enabled else (31, 39, 46)
+        border = (85, 166, 184) if enabled else (64, 76, 82)
+        pygame.draw.rect(surface, fill, rect, border_radius=5)
+        pygame.draw.rect(surface, border, rect, 1, border_radius=5)
+        font = pygame.font.SysFont("Arial", 16, bold=True)
+        glyph = font.render(label, True, (219, 237, 240) if enabled else (116, 128, 132))
+        surface.blit(glyph, glyph.get_rect(center=rect.center))

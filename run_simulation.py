@@ -158,7 +158,7 @@ def main():
                 logical_event = pygame.event.Event(
                     event.type, {**event.dict, "pos": logical_pos}
                 )
-                sim.pier_manager.handle_event(logical_event, screen)
+                sim.pier_manager.handle_event(logical_event, screen, simulation=sim)
 
         # Makes sure speed multiplier runs correctly
         if not is_paused:
@@ -225,7 +225,8 @@ def main():
             )
         elif not minimal_mode:
             hud.draw_controls(screen, speed_multiplier, display_mode, show_sim_options)
-        sim.pier_manager.draw(screen, hud.font, show_ui=True, sim_time=sim.sim_time)
+        sim.pier_manager.draw(screen, hud.font, show_ui=True, sim_time=sim.sim_time,
+                              simulation=sim)
         sim.whirlpool_manager.draw_ui(screen, hud.font)
 
 
