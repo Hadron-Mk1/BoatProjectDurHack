@@ -57,7 +57,6 @@ class BoatState(Enum):
     CLEANING = "CLEANING"
     DUMPING = "DUMPING"
     RETURNING = "RETURNING"
-    WHIRLPOOL = "WHIRLPOOL"
 
 
 class BoatType(Enum):
@@ -130,9 +129,6 @@ class BoatAgent:
         self.target_spill = None
         self.current_cell_index: Optional[int] = None
 
-        # Whirlpool subsystem
-        self.suspended_task: Optional[dict] = None
-
         # Sensor parameters
         self.detection_radius = DETECTION_RADIUS
         self.fishing_radius = FISHING_RADIUS
@@ -151,17 +147,8 @@ class BoatAgent:
         if self.state == new_state:
             return True
 
-        if new_state == BoatState.WHIRLPOOL:
-            # Active boats can be pulled into a whirlpool; broken boats are strictly excluded
-            return self.state != BoatState.BROKEN and not getattr(self, "needs_rescue", False)
-
-        if self.state == BoatState.WHIRLPOOL:
-            # Whirpool state can transition back when resumed
-            return True
-
         if new_state == BoatState.BROKEN:
-            return self.state in (BoatState.EXPLORING, BoatState.RESERVED, BoatState.TRAVELING,
-                                  BoatState.FISHING, BoatState.WHIRLPOOL)
+            return self.state in (BoatState.EXPLORING, BoatState.RESERVED, BoatState.TRAVELING, BoatState.FISHING)
 
         if new_state == BoatState.TOWING:
             return self.boat_type == BoatType.TOWING and self.state == BoatState.MOVING_TO_TOW
@@ -239,7 +226,6 @@ class BoatAgent:
             self.assigned_school_pos = None
             self.target_position = None
             self.current_cell_index = None
-            self.suspended_task = None
 
         elif new_state in (BoatState.MOVING_TO_TOW, BoatState.MOVING_TO_SPILL,
                            BoatState.TOWING, BoatState.CLEANING):
@@ -254,9 +240,6 @@ class BoatAgent:
                 self.target_spill = None
             if new_state not in (BoatState.MOVING_TO_TOW, BoatState.TOWING):
                 self.claimed_rescue = None
-
-        elif new_state == BoatState.WHIRLPOOL:
-            self.velocity = pygame.Vector2(0, 0)
 
         elif new_state == BoatState.EXPLORING:
             self.needs_rescue = False
@@ -283,64 +266,6 @@ class BoatAgent:
         self.current_cell_index = None
         if world_coordinator is not None:
             world_coordinator.release_exploration_target(self.boat_id)
-
-    def suspend_task(self):
-        """
-        Suspends the active boat's current task state and transitions it to WHIRLPOOL.
-        """
-        self.suspended_task = {
-            "state": self.state,
-            "current_operation_id": self.current_operation_id,
-            "assigned_school_id": self.assigned_school_id,
-            "assigned_school_pos": self.assigned_school_pos.copy() if self.assigned_school_pos is not None else None,
-            "target_position": self.target_position.copy() if self.target_position is not None else None,
-            "target_spill": self.target_spill,
-            "current_grid": self.current_grid,
-            "current_cell_index": self.current_cell_index,
-            "velocity": self.velocity.copy(),
-            "heading": self.heading,
-            "claimed_rescue": self.claimed_rescue,
-            "mission": self.mission,
-            "collision_avoidance_enabled": self.collision_avoidance_enabled,
-            "oil_slow_remaining": self.oil_slow_remaining,
-            "oil_speed_multiplier": self.oil_speed_multiplier,
-            "deposit_glow_remaining": self.deposit_glow_remaining,
-            "pulse_timer": getattr(self, "pulse_timer", None),
-            "active_pulses": list(getattr(self, "active_pulses", [])),
-        }
-        self.state = BoatState.WHIRLPOOL
-        self.velocity = pygame.Vector2(0, 0)
-
-    def resume_task(self):
-        """
-        Restores the previously suspended task state seamlessly.
-        """
-        if not hasattr(self, "suspended_task") or self.suspended_task is None:
-            self.state = BoatState.EXPLORING
-            return
-
-        task = self.suspended_task
-        self.state = task["state"]
-        self.current_operation_id = task["current_operation_id"]
-        self.assigned_school_id = task["assigned_school_id"]
-        self.assigned_school_pos = task["assigned_school_pos"]
-        self.target_position = task["target_position"]
-        self.target_spill = task["target_spill"]
-        self.current_grid = task["current_grid"]
-        self.current_cell_index = task["current_cell_index"]
-        self.velocity = task["velocity"]
-        self.heading = task["heading"]
-        self.claimed_rescue = task["claimed_rescue"]
-        self.mission = task["mission"]
-        self.collision_avoidance_enabled = task["collision_avoidance_enabled"]
-        self.oil_slow_remaining = task["oil_slow_remaining"]
-        self.oil_speed_multiplier = task["oil_speed_multiplier"]
-        self.deposit_glow_remaining = task["deposit_glow_remaining"]
-        if task["pulse_timer"] is not None:
-            self.pulse_timer = task["pulse_timer"]
-            self.active_pulses = task["active_pulses"]
-        self.suspended_task = None
-
 
     # ----------------- Kinematics & Steering -----------------
 
@@ -430,9 +355,6 @@ class BoatAgent:
         """
         Updates boat state and motion according to its active state.
         """
-        if self.state == BoatState.WHIRLPOOL:
-            return
-
         if self.oil_slow_remaining > 0.0:
             self.oil_slow_remaining = max(0.0, self.oil_slow_remaining - delta_time)
             if self.oil_slow_remaining == 0.0:
@@ -624,43 +546,33 @@ class BoatAgent:
         pos = (round(render_position.x), round(render_position.y))
         render_heading = (self.heading if self.needs_rescue else
                           self.heading + math.sin(animation_phase * .55) * .018)
-        # Homogenous & Industrial utilitarian fleet aesthetics:
-        # Tighter, cohesive palette of muted slate greys, dark navy, rusted iron, and safety orange accents.
         role_styles = {
             BoatType.SONAR: {
-                "length": BOAT_LENGTH * 1.25, "width": BOAT_WIDTH * 1.10,
-                "hull": (32, 42, 52),       # Dark slate navy
-                "deck": (68, 76, 84),       # Weathered steel deck
-                "accent": (225, 95, 32),    # Safety orange housing / antenna
-                "trim": (145, 82, 50),      # Rusted iron plate
+                "length": BOAT_LENGTH * 1.3, "width": BOAT_WIDTH * 1.15,
+                "hull": (13, 83, 104), "deck": (27, 158, 174),
+                "accent": (36, 255, 92), "trim": (18, 211, 76),
             },
             BoatType.TOWING: {
-                "length": BOAT_LENGTH * 1.35, "width": BOAT_WIDTH * 1.25,
-                "hull": (24, 34, 46),       # Heavy dark navy steel
-                "deck": (62, 70, 78),       # Industrial non-slip slate
-                "accent": (230, 92, 30),    # Safety orange gantry
-                "trim": (160, 75, 42),      # Heavy rusted steel trim
+                "length": BOAT_LENGTH * 1.4, "width": BOAT_WIDTH * 1.25,
+                "hull": (30, 45, 57), "deck": (88, 106, 104),
+                "accent": (255, 35, 48), "trim": (255, 90, 72),
             },
             BoatType.CLEANING: {
-                "length": BOAT_LENGTH * 1.05, "width": BOAT_WIDTH * 0.94,
-                "hull": (48, 42, 40),       # Rusted iron & dark charcoal
-                "deck": (70, 74, 80),       # Slate steel
-                "accent": (220, 90, 30),    # Safety orange recovery boom
-                "trim": (150, 85, 52),      # Rusted iron fittings
+                "length": BOAT_LENGTH * 0.95, "width": BOAT_WIDTH * 0.82,
+                "hull": (205, 66, 28), "deck": (237, 142, 34),
+                "accent": (35, 232, 255), "trim": (24, 173, 226),
             },
             BoatType.REGULAR: {
-                "length": BOAT_LENGTH * 1.10, "width": BOAT_WIDTH * 1.02,
-                "hull": (38, 46, 54),       # Muted slate grey
-                "deck": (66, 74, 82),       # Weathered steel deck
-                "accent": (225, 95, 32),    # Safety orange winch & equipment
-                "trim": (145, 80, 48),      # Rusted iron plate
+                "length": BOAT_LENGTH, "width": BOAT_WIDTH,
+                "hull": (24, 69, 132), "deck": (49, 139, 171),
+                "accent": (255, 226, 28), "trim": (255, 184, 18),
             },
         }
         style = dict(role_styles[self.boat_type])  # shallow copy so we can mutate
+        # Keep the fleet readable while giving each vessel more room on screen.
         model_scale = 0.9
         style["length"] *= model_scale
         style["width"] *= model_scale
-
 
         # Desaturate hull/deck/accent when at full cargo capacity
         if self.is_cargo_full and not minimal:

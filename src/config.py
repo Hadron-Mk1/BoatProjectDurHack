@@ -117,14 +117,3 @@ COLOR_OIL_SPILL = (155, 70, 220)
 
 COLOR_TEXT = (240, 245, 250)
 COLOR_DEBUG_RAY = (255, 255, 120, 150)
-
-# Whirlpool event parameters
-WHIRLPOOL_DURATION = 15.0            # Active phase lasts exactly 15 seconds
-WHIRLPOOL_MIN_COOLDOWN = 120.0       # 2-minute minimum cooldown after despawn
-WHIRLPOOL_RANDOM_DELAY_MIN = 0.0      # Random trigger time in the 2-minute window after cooldown
-WHIRLPOOL_RANDOM_DELAY_MAX = 120.0
-WHIRLPOOL_INNER_RADIUS = 85.0        # Inner ring orbital radius
-WHIRLPOOL_OUTER_RADIUS = 165.0       # Outer ring orbital radius
-WHIRLPOOL_ORBIT_SPEED = 1.35         # Orbital angular speed (radians/sec)
-COLOR_WHIRLPOOL_CYAN = (40, 200, 240)
-COLOR_WHIRLPOOL_DEEP = (15, 65, 115)
