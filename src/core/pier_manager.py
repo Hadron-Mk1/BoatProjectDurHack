@@ -64,23 +64,9 @@ class PierManager:
             size=size,
         )
 
-    def new_starting_mission(self, fish_capacity: float) -> FishingMission | None:
-        """Create a random starting mission that fits the boat's capacity."""
-        eligible_sizes = [
-            size for size, (low, _) in self.MISSION_RANGES.items()
-            if fish_capacity >= low
-        ]
-        if not eligible_sizes:
-            return None
-
-        size = self.rng.choice(eligible_sizes)
-        low, high = self.MISSION_RANGES[size]
-        amount = self.rng.choice(range(low, min(high, int(fish_capacity)) + 1))
-        return FishingMission(
-            color=self.rng.choice(FISH_COLORS),
-            amount=float(amount),
-            size=size,
-        )
+    def new_starting_mission(self) -> FishingMission:
+        """Create an independent small mission for a newly added fishing boat."""
+        return self._new_mission("SMALL")
 
     def prepare(self, simulation, delta_time: float):
         """Route boats needing service and keep the dock within its capacity."""
@@ -191,13 +177,10 @@ class PierManager:
                 boat.mission = None
 
             if boat.mission is None:
-                eligible_slots = [
-                    index for index, mission in enumerate(self.missions)
-                    if mission.amount <= boat.fish_capacity
-                    and self.mission_cooldowns[index] <= 0.0
-                ]
-                if eligible_slots:
-                    slot = self.rng.choice(eligible_slots)
+                slot = next((index for index, mission in enumerate(self.missions)
+                             if mission.amount <= boat.fish_capacity
+                             and self.mission_cooldowns[index] <= 0.0), None)
+                if slot is not None:
                     mission = self.missions[slot]
                     self.missions[slot] = self._new_mission(mission.size, previous=mission)
                     self.mission_cooldowns[slot] = self.MISSION_RESET_COOLDOWN
