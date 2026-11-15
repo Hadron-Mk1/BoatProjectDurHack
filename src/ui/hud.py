@@ -113,6 +113,7 @@ class SimulationHUD:
                 ("Minimal", "mode_minimal"), (" / ", "separator"),
                 ("Normal", "mode_normal"),
                 (" | [I] Info HUD", "label"),
+                (" | [Ctrl+F11] Fullscreen", "label"),
             ]
         else:
             segments = [("[Tab] Sim options", "label")]

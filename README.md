@@ -54,11 +54,11 @@ python run_simulation.py
 | **S** | Cycle through simulation speeds (1x → 2x → 4x) |
 | **D** | Toggle debug overlays (detection radii, exploration waypoints, cooperation rays) |
 | **R** | Reset simulation to the beginning |
-| **F11** | Toggle fullscreen / resizable window |
+| **F11** | Toggle fullscreen / maximized window |
 | **M** | Minimize the window |
 | **ESC** | Exit simulation |
 
-The window can also be resized or minimized with the operating system's window controls. The simulation keeps its fixed 1200 × 800 world and scales the rendered view to fit, preserving sprite spacing and movement.
+The window can also be resized or minimized with the operating system's window controls. The simulation keeps its fixed 1200 × 800 world and scales the rendered view to fill the window, so there are no unused bars or gaps. Simulation positions and movement stay unchanged; the view may stretch slightly when the window aspect ratio differs from 3:2.
 
 ---
 

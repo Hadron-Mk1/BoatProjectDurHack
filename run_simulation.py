@@ -4,6 +4,7 @@ Launches the fishing simulation with Pygame.
 """
 import sys
 import pygame
+from pygame._sdl2 import Window as PygameWindow
 
 from src.config import (
     OCEAN_WIDTH,
@@ -72,10 +73,24 @@ def create_default_scenario() -> FishSwarmSimulation:
 
     return sim
 
+
+def fit_surface_rect(window_size: tuple[int, int]) -> pygame.Rect:
+    """Return the full window area, avoiding unused bars around the scene."""
+    return pygame.Rect(0, 0, max(1, window_size[0]), max(1, window_size[1]))
+
+
 def main():
     pygame.init()
     pygame.display.set_caption("FishSwarm - Autonomous Multi-Agent Fishing Simulation")
-    screen = pygame.display.set_mode((OCEAN_WIDTH, OCEAN_HEIGHT))
+    pygame.display.set_mode((OCEAN_WIDTH, OCEAN_HEIGHT), pygame.RESIZABLE)
+    # Keep a standard decorated window so the OS provides minimize,
+    # maximize/restore, and close buttons in its title bar.
+    app_window = PygameWindow.from_display_module()
+    app_window.resizable = True
+    app_window.maximize()
+    # Keep the simulation's coordinate system fixed; only scale the final frame.
+    screen = pygame.Surface((OCEAN_WIDTH, OCEAN_HEIGHT))
+    is_fullscreen = False
     clock = pygame.time.Clock()
     ocean = OceanRenderer(OCEAN_WIDTH, OCEAN_HEIGHT)
 
@@ -104,6 +119,15 @@ def main():
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     running = False
+                elif event.key == pygame.K_F11:
+                    if is_fullscreen:
+                        app_window.set_windowed()
+                        app_window.maximize()
+                    else:
+                        app_window.set_fullscreen(desktop=True)
+                    is_fullscreen = not is_fullscreen
+                elif event.key == pygame.K_m:
+                    app_window.minimize()
                 elif event.key == pygame.K_SPACE:
                     is_paused = not is_paused
                 elif event.key == pygame.K_s:
@@ -122,7 +146,16 @@ def main():
                     sim = create_default_scenario()
 
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                sim.pier_manager.handle_event(event, screen)
+                window = pygame.display.get_surface()
+                display_rect = fit_surface_rect(window.get_size())
+                logical_pos = (
+                    round(event.pos[0] * OCEAN_WIDTH / display_rect.width),
+                    round(event.pos[1] * OCEAN_HEIGHT / display_rect.height),
+                )
+                logical_event = pygame.event.Event(
+                    event.type, {**event.dict, "pos": logical_pos}
+                )
+                sim.pier_manager.handle_event(logical_event, screen)
 
         # Makes sure speed multiplier runs correctly
         if not is_paused:
@@ -189,6 +222,10 @@ def main():
             hud.draw_controls(screen, speed_multiplier, display_mode, show_sim_options)
         sim.pier_manager.draw(screen, hud.font, show_ui=True)
 
+        window = pygame.display.get_surface()
+        display_rect = fit_surface_rect(window.get_size())
+        window.blit(pygame.transform.smoothscale(screen, display_rect.size),
+                    display_rect.topleft)
         pygame.display.flip()
 
     pygame.quit()
