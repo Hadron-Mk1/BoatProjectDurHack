@@ -1,6 +1,6 @@
 import pytest
 
-from src.core.simulation import FishSwarmSimulation
+from src.core.simulation import BoatSwarmSimulation
 from src.core.pier_manager import FishingMission
 from src.entities.boat_agent import BoatState, CleaningBoat, RegularBoat, TowingBoat
 
@@ -14,7 +14,7 @@ from src.entities.boat_agent import BoatState, CleaningBoat, RegularBoat, Towing
     ],
 )
 def test_docked_boat_gets_largest_mission_within_its_capacity(boat_class, expected_amount):
-    sim = FishSwarmSimulation()
+    sim = BoatSwarmSimulation()
     boat = boat_class((100, 100))
     sim.add_boat(boat)
     boat.mission = None
@@ -38,7 +38,7 @@ def test_docked_boat_gets_largest_mission_within_its_capacity(boat_class, expect
 
 
 def test_docked_boat_chooses_best_ready_mission_under_capacity():
-    sim = FishSwarmSimulation()
+    sim = BoatSwarmSimulation()
     boat = RegularBoat((100, 100))
     sim.add_boat(boat)
     boat.mission = None

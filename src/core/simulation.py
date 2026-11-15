@@ -1,5 +1,5 @@
 """
-SimulationManager for FishSwarm.
+SimulationManager for BoatSwarm.
 Orchestrates world state, boat fleets, fish schools, discovery scans,
 cooperative harvesting loops, depletion handling, and recovery back to exploration.
 """
@@ -27,7 +27,7 @@ from src.core.whirlpool_manager import WhirlpoolManager
 from src.entities.boat_agent import BoatAgent, BoatState, BoatType, SonarBoat
 from src.entities.fish_school import FishSchool
 
-class FishSwarmSimulation:
+class BoatSwarmSimulation:
     """
     Master simulation kernel coordinating all entities and subsystems.
     """

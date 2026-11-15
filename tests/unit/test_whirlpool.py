@@ -23,7 +23,7 @@ from src.config import (
     COLOR_FISH_BLUE,
     COLOR_FISH_YELLOW,
 )
-from src.core.simulation import FishSwarmSimulation
+from src.core.simulation import BoatSwarmSimulation
 from src.core.whirlpool_manager import WhirlpoolManager
 from src.entities.boat_agent import BoatAgent, BoatState, BoatType, RegularBoat, TowingBoat, CleaningBoat, SonarBoat
 from src.entities.fish_school import FishSchool
@@ -48,7 +48,7 @@ def test_whirlpool_initial_randomized_trigger_window():
     assert wm.time_remaining == 0.0
 
     wm.random_delay_remaining = 120.0
-    sim = FishSwarmSimulation()
+    sim = BoatSwarmSimulation()
     wm.update(119.0, sim)
     assert wm.is_active is False
     wm.update(1.0, sim)
@@ -57,7 +57,7 @@ def test_whirlpool_initial_randomized_trigger_window():
 
 def test_whirlpool_duration_is_exactly_15_seconds():
     """Verify whirlpool active phase lasts exactly 15 seconds and then despawns."""
-    sim = FishSwarmSimulation()
+    sim = BoatSwarmSimulation()
     boat = RegularBoat(position=(600 + WHIRLPOOL_INNER_RADIUS, 400))
     sim.add_boat(boat)
 
@@ -89,7 +89,7 @@ def test_whirlpool_duration_is_exactly_15_seconds():
 
 def test_whirlpool_timers_follow_simulation_time():
     """Whirlpool countdown advances only when simulation time advances."""
-    sim = FishSwarmSimulation()
+    sim = BoatSwarmSimulation()
     boat = RegularBoat(position=(600 + WHIRLPOOL_INNER_RADIUS, 400))
     sim.add_boat(boat)
     wm = sim.whirlpool_manager
@@ -116,7 +116,7 @@ def test_strict_two_minute_cooldown_and_randomized_trigger_window_after_despawn(
     Enforce a strict 2-minute minimum cooldown after despawn, followed by a
     randomized trigger time within the next 2-minute window.
     """
-    sim = FishSwarmSimulation()
+    sim = BoatSwarmSimulation()
     boat = RegularBoat(position=(600 + WHIRLPOOL_INNER_RADIUS, 400))
     sim.add_boat(boat)
 
@@ -157,7 +157,7 @@ def test_spin_direction_and_counter_orbit():
     Spin direction must be assigned to clockwise (+1) or anticlockwise (-1).
     Affected boats must orbit in the OPPOSITE direction of whirlpool spin.
     """
-    sim = FishSwarmSimulation()
+    sim = BoatSwarmSimulation()
     b1 = RegularBoat(position=(600, 300))
     sim.add_boat(b1)
 
@@ -181,7 +181,7 @@ def test_broken_boats_strictly_excluded():
     Verify behaviour applies to all active boats, EXPLICITLY excluding broken boats,
     which must remain completely unaffected in their current state and position.
     """
-    sim = FishSwarmSimulation()
+    sim = BoatSwarmSimulation()
     active_boat1 = RegularBoat(position=(500, 350))
     active_boat2 = TowingBoat(position=(700, 450))
     broken_boat = RegularBoat(position=(300, 200))
@@ -217,7 +217,7 @@ def test_broken_boats_strictly_excluded():
 
 
 def test_broken_boat_does_not_block_arrival_or_move_during_whirlpool():
-    sim = FishSwarmSimulation()
+    sim = BoatSwarmSimulation()
     broken = RegularBoat(position=(500, 400))
     broken.transition_to(BoatState.BROKEN)
     active = RegularBoat(position=(600 + WHIRLPOOL_INNER_RADIUS, 400))
@@ -248,7 +248,7 @@ def test_broken_boat_does_not_block_arrival_or_move_during_whirlpool():
 
 
 def test_boat_breaking_during_approach_is_removed_from_readiness_and_not_resumed():
-    sim = FishSwarmSimulation()
+    sim = BoatSwarmSimulation()
     broken_mid_event = RegularBoat(position=(300, 300))
     survivor = RegularBoat(position=(850, 650))
     sim.add_boat(broken_mid_event)
@@ -274,7 +274,7 @@ def test_boat_breaking_during_approach_is_removed_from_readiness_and_not_resumed
 
 
 def test_whirlpool_cancels_active_tow_and_leaves_wreck_broken():
-    sim = FishSwarmSimulation()
+    sim = BoatSwarmSimulation()
     wreck = RegularBoat((300, 300))
     wreck.transition_to(BoatState.BROKEN)
     tow_one = TowingBoat((300, 290))
@@ -316,7 +316,7 @@ def test_whirlpool_cancels_active_tow_and_leaves_wreck_broken():
 
 
 def test_specialized_boats_suspend_and_resume_their_exact_tasks():
-    sim = FishSwarmSimulation()
+    sim = BoatSwarmSimulation()
     wreck = RegularBoat(position=(100, 100))
     cleaner = CleaningBoat(position=(300, 300))
     sonar = SonarBoat(position=(700, 600))
@@ -353,7 +353,7 @@ def test_task_suspension_and_seamless_resumption():
     When whirlpool spawns, save/pause each active boat's current task state.
     Immediately after 15s duration ends, restore suspended tasks seamlessly.
     """
-    sim = FishSwarmSimulation()
+    sim = BoatSwarmSimulation()
     school = FishSchool(position=(650, 450), population=100.0, color=COLOR_FISH_RED)
     sim.add_school(school)
 
@@ -409,7 +409,7 @@ def test_dual_radius_distribution_and_uniform_spacing():
     Divide orbiting boats evenly across two distinct orbital radii (inner & outer)
     and space them out uniformly along the circumference of each ring to prevent overlapping.
     """
-    sim = FishSwarmSimulation()
+    sim = BoatSwarmSimulation()
     # Add 10 boats around the map
     fleet = [
         RegularBoat(position=(200 + i * 80, 200 + (i % 3) * 100))
@@ -475,7 +475,7 @@ def test_top_screen_ui_status_bar():
     Verify progress bar anchored to the top of screen whenever a whirlpool is active,
     tracking completion from 0% to 100%, and hiding once event concludes.
     """
-    sim = FishSwarmSimulation()
+    sim = BoatSwarmSimulation()
     boat = RegularBoat(position=(600 + WHIRLPOOL_INNER_RADIUS, 400))
     sim.add_boat(boat)
 
@@ -509,7 +509,7 @@ def test_top_screen_ui_status_bar():
 
 def test_odd_boat_count_distribution():
     """Verify dual-ring distribution works cleanly for odd and small boat counts."""
-    sim = FishSwarmSimulation()
+    sim = BoatSwarmSimulation()
     # 7 boats -> 4 inner, 3 outer
     for i in range(7):
         sim.add_boat(RegularBoat(position=(300 + i * 50, 400)))
@@ -522,7 +522,7 @@ def test_odd_boat_count_distribution():
     wm.despawn(sim)
 
     # 1 boat -> 1 inner, 0 outer
-    sim1 = FishSwarmSimulation()
+    sim1 = BoatSwarmSimulation()
     sim1.add_boat(RegularBoat(position=(500, 400)))
     wm1 = sim1.whirlpool_manager
     wm1.trigger_spawn(sim1, center=(600, 400))
@@ -532,7 +532,7 @@ def test_odd_boat_count_distribution():
     wm1.despawn(sim1)
 
     # 0 boats -> 0 inner, 0 outer
-    sim0 = FishSwarmSimulation()
+    sim0 = BoatSwarmSimulation()
     wm0 = sim0.whirlpool_manager
     wm0.trigger_spawn(sim0, center=(600, 400))
     assert len(wm0.affected_boats) == 0
@@ -543,7 +543,7 @@ def test_odd_boat_count_distribution():
 
 def test_counter_orbit_angular_motion():
     """Verify boats rotate around the whirlpool center in the counter-orbit direction."""
-    sim = FishSwarmSimulation()
+    sim = BoatSwarmSimulation()
     boat = RegularBoat(position=(600 + WHIRLPOOL_INNER_RADIUS, 400))
     sim.add_boat(boat)
 

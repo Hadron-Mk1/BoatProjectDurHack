@@ -2,7 +2,7 @@ import pygame
 
 from src.config import OIL_SPILL_CHANCE
 from src.core.comms_hub import Message
-from src.core.simulation import FishSwarmSimulation
+from src.core.simulation import BoatSwarmSimulation
 from src.entities.boat_agent import BoatAgent, BoatState, BoatType, CleaningBoat, RegularBoat, TowingBoat
 from src.entities.fish_school import FishSchool
 from src.entities.oil_spill import OilSpill
@@ -50,7 +50,7 @@ def test_fishing_harvest_respects_each_boats_remaining_capacity():
 
 def test_moving_boat_can_spawn_alerted_spill_in_open_water():
     assert 0.0 < OIL_SPILL_CHANCE <= 1.0
-    sim = FishSwarmSimulation(width=500, height=400, margin=20)
+    sim = BoatSwarmSimulation(width=500, height=400, margin=20)
     boat = RegularBoat((210, 200))
     sim.add_boat(boat)
     sim.oil_spill_manager.rng = AlwaysSpawnRng()
@@ -71,7 +71,7 @@ def test_moving_boat_can_spawn_alerted_spill_in_open_water():
 
 
 def test_next_boat_contact_reports_slowdowns_and_dispatches_cleaner():
-    sim = FishSwarmSimulation(width=500, height=400, margin=20)
+    sim = BoatSwarmSimulation(width=500, height=400, margin=20)
     creator = RegularBoat((100, 100))
     discoverer = TowingBoat((200, 200))
     cleaner = CleaningBoat((250, 200))
@@ -91,7 +91,7 @@ def test_next_boat_contact_reports_slowdowns_and_dispatches_cleaner():
 
 
 def test_spill_spawn_rejects_dock_or_obstacle_clearance():
-    sim = FishSwarmSimulation(width=500, height=400, margin=20)
+    sim = BoatSwarmSimulation(width=500, height=400, margin=20)
     boat = RegularBoat((210, 200))
     sim.add_boat(boat)
     sim.obstacles.append(pygame.Rect(120, 160, 60, 80))
@@ -103,7 +103,7 @@ def test_spill_spawn_rejects_dock_or_obstacle_clearance():
 
 
 def test_oil_collision_slows_boat_and_dispatches_nearest_cleaner():
-    sim = FishSwarmSimulation(width=600, height=500, margin=20)
+    sim = BoatSwarmSimulation(width=600, height=500, margin=20)
     boat = RegularBoat((190, 200))
     nearest_cleaner = CleaningBoat((244, 200))
     farther_cleaner = CleaningBoat((200, 350))
@@ -127,7 +127,7 @@ def test_oil_collision_slows_boat_and_dispatches_nearest_cleaner():
 
 
 def test_priority_states_do_not_run_exploration_or_fishing_movement():
-    sim = FishSwarmSimulation(width=500, height=400, margin=20)
+    sim = BoatSwarmSimulation(width=500, height=400, margin=20)
     for boat, state in (
         (CleaningBoat((100, 100)), BoatState.MOVING_TO_SPILL),
         (TowingBoat((200, 100)), BoatState.MOVING_TO_TOW),
@@ -149,7 +149,7 @@ def test_non_towing_classes_cannot_enter_tow_states():
 
 
 def test_invalid_raw_tow_state_is_rejected_by_regular_boat_update():
-    sim = FishSwarmSimulation(width=500, height=400, margin=20)
+    sim = BoatSwarmSimulation(width=500, height=400, margin=20)
     regular = RegularBoat((250, 200))
     regular.state = BoatState.TOWING
 
@@ -159,7 +159,7 @@ def test_invalid_raw_tow_state_is_rejected_by_regular_boat_update():
 
 
 def test_cleaning_boat_holds_position_then_clears_spill():
-    sim = FishSwarmSimulation(width=600, height=500, margin=20)
+    sim = BoatSwarmSimulation(width=600, height=500, margin=20)
     cleaner = CleaningBoat((200, 200))
     sim.add_boat(cleaner)
     spill = OilSpill(1, pygame.Vector2(200, 200), 34.0)
@@ -185,7 +185,7 @@ def test_cleaning_boat_holds_position_then_clears_spill():
 
 
 def test_cleaning_boat_does_not_claim_silent_spill_before_discovery():
-    sim = FishSwarmSimulation(width=500, height=400, margin=20)
+    sim = BoatSwarmSimulation(width=500, height=400, margin=20)
     cleaner = CleaningBoat((300, 200))
     sim.add_boat(cleaner)
     spill = OilSpill(1, pygame.Vector2(200, 200), 34.0)
@@ -199,7 +199,7 @@ def test_cleaning_boat_does_not_claim_silent_spill_before_discovery():
 
 
 def test_cleaning_boat_polls_and_claims_reported_spill():
-    sim = FishSwarmSimulation(width=500, height=400, margin=20)
+    sim = BoatSwarmSimulation(width=500, height=400, margin=20)
     cleaner = CleaningBoat((300, 200))
     sim.add_boat(cleaner)
     spill = OilSpill(1, pygame.Vector2(200, 200), 34.0, reported=True)
@@ -212,7 +212,7 @@ def test_cleaning_boat_polls_and_claims_reported_spill():
 
 
 def test_only_cleaning_class_can_be_assigned_to_spill_cleanup():
-    sim = FishSwarmSimulation(width=500, height=400, margin=20)
+    sim = BoatSwarmSimulation(width=500, height=400, margin=20)
     regular = BoatAgent((100, 100))
     sim.add_boat(regular)
     spill = OilSpill(1, pygame.Vector2(200, 200), 34.0)
@@ -231,17 +231,17 @@ def test_oil_speed_debuff_expires_after_ten_seconds():
     boat.state = BoatState.FISHING
     boat.apply_oil_slow(10.0, 0.55)
 
-    boat.update(9.9, FishSwarmSimulation(width=500, height=400).world_coordinator)
+    boat.update(9.9, BoatSwarmSimulation(width=500, height=400).world_coordinator)
     assert boat.oil_speed_multiplier == 0.55
     assert boat.oil_slow_remaining > 0.0
 
-    boat.update(0.1, FishSwarmSimulation(width=500, height=400).world_coordinator)
+    boat.update(0.1, BoatSwarmSimulation(width=500, height=400).world_coordinator)
     assert boat.oil_speed_multiplier == 1.0
     assert boat.oil_slow_remaining == 0.0
 
 
 def test_movement_tick_spill_roll_can_fail():
-    sim = FishSwarmSimulation(width=500, height=400, margin=20)
+    sim = BoatSwarmSimulation(width=500, height=400, margin=20)
     boat = RegularBoat((210, 200))
     sim.add_boat(boat)
     sim.oil_spill_manager.rng = NeverSpawnRng()
@@ -305,7 +305,7 @@ def test_unload_cargo_empties_and_restores_capacity():
 
 
 def test_full_capacity_boat_excluded_from_fishing_participants():
-    sim = FishSwarmSimulation(width=500, height=400, margin=20)
+    sim = BoatSwarmSimulation(width=500, height=400, margin=20)
     boat = RegularBoat((100, 100), fish_capacity=5.0)
     boat.fish_catch = 5.0
     sim.add_boat(boat)
