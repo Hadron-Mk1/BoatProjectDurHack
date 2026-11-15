@@ -1,6 +1,6 @@
 import pygame
 
-from src.core.simulation import FishSwarmSimulation
+from src.core.simulation import BoatSwarmSimulation
 from src.entities.boat_agent import BoatState, BoatType, RegularBoat
 
 
@@ -9,7 +9,7 @@ def click(point):
 
 
 def test_fleet_panel_adds_and_removes_boats_of_each_type_dynamically():
-    sim = FishSwarmSimulation()
+    sim = BoatSwarmSimulation()
     pier = sim.pier_manager
     surface = pygame.Surface((1200, 800))
     assert not pier.fleet_menu_open
@@ -41,7 +41,7 @@ def test_fleet_panel_adds_and_removes_boats_of_each_type_dynamically():
 
 
 def test_boat_added_during_whirlpool_joins_the_active_event():
-    sim = FishSwarmSimulation()
+    sim = BoatSwarmSimulation()
     lead = RegularBoat((685, 400))
     sim.add_boat(lead)
     sim.whirlpool_manager.trigger_spawn(sim, center=(600, 400))
@@ -54,7 +54,7 @@ def test_boat_added_during_whirlpool_joins_the_active_event():
 
 
 def test_removing_a_boat_during_whirlpool_detaches_its_slot():
-    sim = FishSwarmSimulation()
+    sim = BoatSwarmSimulation()
     boat = RegularBoat((685, 400))
     sim.add_boat(boat)
     sim.whirlpool_manager.trigger_spawn(sim, center=(600, 400))
