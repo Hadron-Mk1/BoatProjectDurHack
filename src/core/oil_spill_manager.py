@@ -42,6 +42,8 @@ class OilSpillManager:
 
     def _generate_from_movement(self, simulation, previous_positions):
         for boat in simulation.boats:
+            if boat.state == BoatState.WHIRLPOOL:
+                continue
             previous = previous_positions.get(boat.boat_id, boat.position)
             movement = boat.position - previous
             if movement.length_squared() <= 1e-6 or self.rng.random() >= OIL_SPILL_CHANCE:
@@ -96,6 +98,8 @@ class OilSpillManager:
     def _apply_spill_contacts(self, simulation, previous_positions):
         for spill in self.spills:
             for boat in simulation.boats:
+                if boat.state == BoatState.WHIRLPOOL:
+                    continue
                 # A spill's creator does not discover what happens.
                 if boat.boat_id == spill.created_by:
                     continue
@@ -160,6 +164,8 @@ class OilSpillManager:
         for spill_id, cleanup in list(self._cleanups.items()):
             spill = spills_by_id.get(spill_id)
             cleaner = cleanup["cleaner"]
+            if cleaner.state == BoatState.WHIRLPOOL:
+                continue
             if spill is None:
                 cleaner.target_spill = None
                 cleaner.reset_to_exploring(simulation.world_coordinator)
