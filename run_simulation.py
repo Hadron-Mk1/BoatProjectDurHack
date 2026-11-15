@@ -18,16 +18,16 @@ from src.config import (
     COLOR_FISH_ORANGE,
     COLOR_FISH_CYAN,
 )
-from src.core.simulation import FishSwarmSimulation
+from src.core.simulation import BoatSwarmSimulation
 from src.entities.boat_agent import CleaningBoat, RegularBoat, SonarBoat, TowingBoat
 from src.entities.fish_school import FishSchool
 from src.ui.hud import SimulationHUD
 from src.ui.debug_overlay import DebugOverlay
 from src.ui.ocean_renderer import OceanRenderer
 
-def create_default_scenario() -> FishSwarmSimulation:
+def create_default_scenario() -> BoatSwarmSimulation:
     #Creates a balanced simulation scenario with boats and schools.
-    sim = FishSwarmSimulation(width=OCEAN_WIDTH, height=OCEAN_HEIGHT, margin=40)
+    sim = BoatSwarmSimulation(width=OCEAN_WIDTH, height=OCEAN_HEIGHT, margin=40)
 
     # Spawn fleet of autonomous boats
     fleet = [

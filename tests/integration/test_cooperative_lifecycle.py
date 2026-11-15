@@ -6,7 +6,7 @@ Also verifies pre-arrival depletion recovery and multiple concurrent operations.
 """
 import pytest
 import pygame
-from src.core.simulation import FishSwarmSimulation
+from src.core.simulation import BoatSwarmSimulation
 from src.entities.boat_agent import BoatAgent, BoatState
 from src.entities.fish_school import FishSchool
 from src.core.operation_coordinator import OperationCoordinator
@@ -27,7 +27,7 @@ def test_full_cooperative_cycle_end_to_end():
     Boats travel to school, engage in cooperative fishing, deplete it,
     and all 3 return to independent EXPLORING.
     """
-    sim = FishSwarmSimulation(width=1000, height=800, margin=50)
+    sim = BoatSwarmSimulation(width=1000, height=800, margin=50)
     
     # Moderate population so harvest takes a few frames
     school = FishSchool(position=(220, 220), population=30.0)
@@ -84,7 +84,7 @@ def test_depletion_recovery_while_assistant_in_transit():
     while an assistant is still TRAVELING, the assistant must cleanly
     recover to EXPLORING without getting stuck.
     """
-    sim = FishSwarmSimulation(width=1000, height=800, margin=50)
+    sim = BoatSwarmSimulation(width=1000, height=800, margin=50)
     
     # Very small population (depleted in 1-2 frames by lead alone)
     school = FishSchool(position=(210, 210), population=5.0)
@@ -119,7 +119,7 @@ def test_multiple_concurrent_fishing_operations():
     Verify multiple independent fishing operations running simultaneously
     at different fish schools with disjoint teams.
     """
-    sim = FishSwarmSimulation(width=1400, height=1000, margin=50)
+    sim = BoatSwarmSimulation(width=1400, height=1000, margin=50)
     
     # Team Alpha (near School Alpha at 200, 200)
     school_a = FishSchool((200, 200), population=25.0)
@@ -159,7 +159,7 @@ def test_multiple_concurrent_fishing_operations():
 
 
 def test_depleted_school_respawns_after_configured_delay():
-    sim = FishSwarmSimulation(width=500, height=400, margin=20)
+    sim = BoatSwarmSimulation(width=500, height=400, margin=20)
     school = FishSchool((250, 200), population=10.0)
     school.claim("test_op")
     school.apply_harvest("test_op", active_boat_count=1, delta_time=1.0)

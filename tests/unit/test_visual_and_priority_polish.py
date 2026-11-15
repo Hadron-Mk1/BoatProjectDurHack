@@ -14,7 +14,7 @@ from src.config import (
     WHIRLPOOL_INNER_RADIUS,
     WHIRLPOOL_OUTER_RADIUS,
 )
-from src.core.simulation import FishSwarmSimulation
+from src.core.simulation import BoatSwarmSimulation
 from src.core.pier_manager import PierManager
 from src.core.rescue_manager import RescueManager
 from src.core.whirlpool_manager import WhirlpoolManager
@@ -57,7 +57,7 @@ def test_tow_boat_pushes_smaller_boat_on_collision():
     Tow boats have higher mass/priority: when a tow boat and smaller boat collide,
     the tow boat holds its position and actively pushes the smaller boat out of the way.
     """
-    sim = FishSwarmSimulation()
+    sim = BoatSwarmSimulation()
     tow_boat = TowingBoat(position=(500, 400))
     regular_boat = RegularBoat(position=(515, 400))  # Contact overlap (distance = 15 < clearance)
 
@@ -83,7 +83,7 @@ def test_tow_boat_does_not_yield_to_smaller_boat_in_avoidance():
     Tow boats do not yield to smaller vessels during navigation,
     while smaller vessels yield to heavy tow boats.
     """
-    sim = FishSwarmSimulation()
+    sim = BoatSwarmSimulation()
     tow_boat = TowingBoat(position=(500, 400))
     regular_boat = RegularBoat(position=(530, 400))
 
@@ -105,7 +105,7 @@ def test_whirlpool_dynamic_rotation_speed_ramping():
     Whirlpool features dynamic rotation speed ramping:
     Spins up smoothly on spawn (first 2s) and dissipates smoothly on despawn (last 2s).
     """
-    sim = FishSwarmSimulation()
+    sim = BoatSwarmSimulation()
     wm = sim.whirlpool_manager
     wm.trigger_spawn(sim, center=(600, 400))
 
@@ -136,7 +136,7 @@ def test_whirlpool_smooth_travel_entry_no_snap():
     When whirlpool spawns, boats steer and travel smoothly into their orbital slots
     rather than snapping or teleporting instantly.
     """
-    sim = FishSwarmSimulation()
+    sim = BoatSwarmSimulation()
     # Place a boat 250px away from the whirlpool center
     boat = RegularBoat(position=(850, 400))
     sim.add_boat(boat)
@@ -161,7 +161,7 @@ def test_world_space_whirlpool_status_bar_and_label():
     World-space progress bar floats directly above the whirlpool in canvas coordinates
     and displays the label 'Counteracting Whirlpool'.
     """
-    sim = FishSwarmSimulation()
+    sim = BoatSwarmSimulation()
     boat = RegularBoat(position=(600, 300))
     sim.add_boat(boat)
 

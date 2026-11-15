@@ -1,7 +1,7 @@
 import pygame
 
 from src.config import BOAT_BREAK_CHANCE, RESCUE_PICKUP_RADIUS
-from src.core.simulation import FishSwarmSimulation
+from src.core.simulation import BoatSwarmSimulation
 from src.entities.boat_agent import BoatAgent, BoatState, BoatType, RegularBoat, TowingBoat
 from src.entities.fish_school import FishSchool
 
@@ -19,7 +19,7 @@ class FixedRng:
 
 
 def make_simulation(positions):
-    sim = FishSwarmSimulation(width=500, height=400, margin=20)
+    sim = BoatSwarmSimulation(width=500, height=400, margin=20)
     boats = [BoatAgent(position=p) for p in positions]
     if len(boats) >= 4:
         boats[2].boat_type = BoatType.TOWING
@@ -135,7 +135,7 @@ def test_only_towing_boats_can_enter_tow_states():
 
 
 def test_broken_boat_flags_itself_and_registers_with_rescue_manager():
-    sim = FishSwarmSimulation(width=600, height=500, margin=30)
+    sim = BoatSwarmSimulation(width=600, height=500, margin=30)
     boat = RegularBoat((250, 250))
     sim.add_boat(boat)
     assert not boat.needs_rescue
@@ -154,7 +154,7 @@ def test_broken_boat_flags_itself_and_registers_with_rescue_manager():
 
 
 def test_idle_towing_boat_prioritizes_rescue_over_wandering_and_fishing():
-    sim = FishSwarmSimulation(width=600, height=500, margin=30)
+    sim = BoatSwarmSimulation(width=600, height=500, margin=30)
     wreck = RegularBoat((200, 200))
     wreck.transition_to(BoatState.BROKEN)
     towing_1 = TowingBoat((220, 220))
@@ -179,7 +179,7 @@ def test_idle_towing_boat_prioritizes_rescue_over_wandering_and_fishing():
 
 
 def test_towing_boat_navigation_and_attachment_within_pickup_radius():
-    sim = FishSwarmSimulation(width=600, height=500, margin=30)
+    sim = BoatSwarmSimulation(width=600, height=500, margin=30)
     wreck = RegularBoat((300, 300))
     wreck.transition_to(BoatState.BROKEN)
     # Start rescuers further away than pickup radius
@@ -212,7 +212,7 @@ def test_towing_boat_navigation_and_attachment_within_pickup_radius():
 
 
 def test_full_tow_lifecycle_repairs_wreck_and_releases_towing_boats():
-    sim = FishSwarmSimulation(width=500, height=400, margin=20)
+    sim = BoatSwarmSimulation(width=500, height=400, margin=20)
     wreck = RegularBoat((200, 200))
     wreck.transition_to(BoatState.BROKEN)
     towing_1 = TowingBoat((200, 215))
@@ -247,7 +247,7 @@ def test_full_tow_lifecycle_repairs_wreck_and_releases_towing_boats():
 
 
 def test_single_towing_boat_lifecycle():
-    sim = FishSwarmSimulation(width=500, height=400, margin=20)
+    sim = BoatSwarmSimulation(width=500, height=400, margin=20)
     sim.rescue_manager.required_rescuers = 1
     wreck = RegularBoat((200, 200))
     wreck.transition_to(BoatState.BROKEN)
@@ -276,7 +276,7 @@ def test_single_towing_boat_lifecycle():
 
 
 def test_rescue_manager_draw_renders_active_tow_lines_and_status():
-    sim = FishSwarmSimulation(width=500, height=400, margin=20)
+    sim = BoatSwarmSimulation(width=500, height=400, margin=20)
     wreck = RegularBoat((200, 200))
     wreck.transition_to(BoatState.BROKEN)
     towing_1 = TowingBoat((210, 210))
