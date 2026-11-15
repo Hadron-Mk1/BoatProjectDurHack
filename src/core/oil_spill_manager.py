@@ -96,7 +96,7 @@ class OilSpillManager:
     def _apply_spill_contacts(self, simulation, previous_positions):
         for spill in self.spills:
             for boat in simulation.boats:
-                # A spill's creator does not discover the wake it just created.
+                # A spill's creator does not discover what happens.
                 if boat.boat_id == spill.created_by:
                     continue
                 if boat.boat_id in spill.affected_boat_ids:
@@ -178,7 +178,7 @@ class OilSpillManager:
                     cleaner.transition_to(BoatState.CLEANING)
                     cleanup["phase"] = "cleaning"
                 continue
-
+            
             cleaner.velocity = pygame.Vector2(0, 0)
             cleanup["remaining"] -= delta_time
 

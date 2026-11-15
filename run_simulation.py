@@ -1,6 +1,6 @@
 """
 FishSwarm - Main Application Runner.
-Launches the autonomous multi-agent fishing simulation with Pygame.
+Launches the fishing simulation with Pygame.
 """
 import sys
 import pygame
@@ -25,10 +25,10 @@ from src.ui.debug_overlay import DebugOverlay
 from src.ui.ocean_renderer import OceanRenderer
 
 def create_default_scenario() -> FishSwarmSimulation:
-    """Creates a balanced simulation scenario with boats and schools."""
+    #Creates a balanced simulation scenario with boats and schools.
     sim = FishSwarmSimulation(width=OCEAN_WIDTH, height=OCEAN_HEIGHT, margin=40)
 
-    # 1. Spawn fleet of autonomous boats
+    # Spawn fleet of autonomous boats
     fleet = [
         (TowingBoat, (150, 150), None),
         (CleaningBoat, (350, 600), None),
@@ -57,7 +57,7 @@ def create_default_scenario() -> FishSwarmSimulation:
     for boat_class, pos, target_color in fleet:
         sim.add_boat(boat_class(position=pos, target_color=target_color))
 
-    # 2. Spawn stationary fish schools with varied populations
+    # Spawn stationary fish schools with varied populations
     school_configs = [
         ((250, 300), 80.0, COLOR_FISH_RED),
         ((500, 180), 120.0, COLOR_FISH_BLUE),
@@ -92,10 +92,11 @@ def main():
     running = True
     while running:
         dt = clock.tick(60) / 1000.0  # Real-world delta time in seconds
-        # Cap dt to prevent huge leaps if window moved
-        dt = min(dt, 0.1)
+        dt = min(dt, 0.1) 
+        """ Caps dt by choosing 0.1 if the delta time is too large from
+        window being dragged around, resized, etc """
 
-        # 1. Event Handling
+        # Event Handling / Controls
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
@@ -123,17 +124,17 @@ def main():
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 sim.pier_manager.handle_event(event, screen)
 
-        # 2. Simulation Step
+        # Makes sure speed multiplier runs correctly
         if not is_paused:
             effective_dt = dt * speed_multiplier
             sim.update(effective_dt)
 
-        # 3. Rendering
+        # Rendering
         minimal_mode = display_mode == "minimal"
         show_debug = display_mode == "debug"
         ocean.draw(screen, sim.sim_time)
 
-        # Ocean boundary border
+        # Ocean border
         b = sim.world_coordinator.bounds
         border_rect = pygame.Rect(
             int(b.min_x),

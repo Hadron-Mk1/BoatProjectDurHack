@@ -1,6 +1,6 @@
 """
-OperationCoordinator for FishSwarm.
-Manages fishing operation lifecycles, atomic 2-boat recruitment,
+Coordinator for FishSwarm.
+Manages fishing operation lifecycles, 2-boat recruitment,
 reservation safety, simultaneous discovery arbitration, and cleanup.
 """
 from dataclasses import dataclass, field
@@ -13,7 +13,7 @@ from src.core.comms_hub import CommsHub, Message
 
 @dataclass
 class FishingOperation:
-    """Represents an active fishing mission centered on a fish school."""
+    # Represents an active fishing mission centered on a fish school.
     operation_id: str
     school_id: int
     school_position: pygame.Vector2
@@ -47,18 +47,18 @@ class OperationCoordinator:
 
     @classmethod
     def reset_id_counter(cls, start_id: int = 1):
-        """Resets operation counter for deterministic testing."""
+        # Resets operation counter for deterministic testing.
         cls._next_op_id = start_id
 
     def get_boat_operation(self, boat_id: int) -> Optional[FishingOperation]:
-        """Returns the active operation assigned to boat_id, if any."""
+        # Checks if the boat has a task assigned to it.
         op_id = self.boat_to_operation.get(int(boat_id))
         if op_id is not None:
             return self.operations.get(op_id)
         return None
 
     def get_school_operation(self, school_id: int) -> Optional[FishingOperation]:
-        """Returns the active operation for school_id, if any."""
+        # Checks if the school of fish are targeted in a mission.
         op_id = self.school_to_operation.get(int(school_id))
         if op_id is not None:
             return self.operations.get(op_id)

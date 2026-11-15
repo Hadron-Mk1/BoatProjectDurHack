@@ -17,7 +17,7 @@ class FishingMission:
 
 
 class PierManager:
-    """Manages fish missions, pier berths, and boats arriving to the pier."""
+    """Manages fish missions, pier missions, and boats arriving to the pier."""
 
     MISSION_RANGES = {
         "SMALL": (10, 40),
@@ -97,7 +97,7 @@ class PierManager:
         self.request_dock(boat, simulation)
 
     def request_dock(self, boat, simulation):
-        """Reserve a berth or let the boat roam until a berth becomes free."""
+        """Reserve a mission or let the boat roam until a space becomes free."""
         if boat.boat_type == BoatType.SONAR:
             return False
         boat_id = boat.boat_id
